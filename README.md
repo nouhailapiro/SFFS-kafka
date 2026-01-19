@@ -727,50 +727,123 @@ curl -X POST http://localhost:8000/payment \
 
 ---
 
-## Partie 3 : Simulation Black Friday (15 min)
+## Partie 3 : Simulation Black Friday - Observer le problème
 
-### 3.1 Lancer la simulation
+Le but de cette partie est de **voir le problème** : avec une seule partition et un seul consumer, le système ne peut pas absorber un pic de charge.
 
-Maintenant, testons notre système sous charge !
+### 3.1 Comprendre le LAG
 
-```bash
-python scripts/black_friday_simulation.py -n 50 -c 10
+Le **LAG** est la différence entre :
+- Le nombre de messages produits dans Kafka
+- Le nombre de messages consommés par votre consumer
+
+```
+Messages produits:    [============================] 5000
+Messages consommés:   [========]                     1200
+                      ↑
+                      LAG = 3800 messages en retard!
 ```
 
-Observez ce qui se passe :
-- Les services arrivent-ils à suivre ?
-- Y a-t-il des erreurs ?
-- Quel est le temps de réponse ?
+Un LAG élevé signifie que votre consumer n'arrive pas à suivre le rythme de production.
 
-### 3.2 Mode intense
+### 3.2 Ajouter un délai de traitement au consumer
+
+Pour simuler un traitement réaliste (accès base de données, appels API, etc.), modifiez votre `order-service/service.py` pour ajouter un délai dans `process_payment_event`:
+
+```python
+import time
+
+def process_payment_event(message):
+    user_id = message.get('user_id')
+    cart = message.get('cart')
+    
+    # Simulation d'un traitement lent (accès DB, validation, etc.)
+    time.sleep(0.1)  # 100ms par message = max 10 messages/seconde
+    
+    order = {
+        'order_id': len(orders) + 1,
+        'user_id': user_id,
+        'items': cart,
+        'status': 'confirmed'
+    }
+    # ... reste du code
+```
+
+### 3.3 Lancer la simulation Black Friday
+
+**Terminal 1 - Lancez votre order-service:**
+```bash
+python order-service/service.py
+```
+
+**Terminal 2 - Injectez 1000 messages dans Kafka:**
+```bash
+python scripts/kafka_flood.py -n 1000
+```
+
+Vous verrez que les 1000 messages sont envoyés en quelques secondes.
+
+### 3.4 Observer le LAG
+
+**Terminal 3 - Surveillez le lag en temps réel:**
+```bash
+python scripts/check_consumer_lag.py --monitor
+```
+
+Vous devriez voir quelque chose comme :
+```
+⏰ 14:32:15
+   order-service-group → payment-successful: 🔥 Lag = 847
+⏰ 14:32:17
+   order-service-group → payment-successful: 🔥 Lag = 823
+⏰ 14:32:19
+   order-service-group → payment-successful: 🔥 Lag = 801
+```
+
+**Le consumer traite ~10 messages/seconde, mais on en a injecté 1000 en 2 secondes !**
+
+### 3.5 Mode intense 🔥
+
+Essayez avec plus de messages :
 
 ```bash
-python scripts/black_friday_simulation.py --intense
+python scripts/kafka_flood.py --intense  # 5000 messages
 ```
+
+Le LAG explose ! Votre unique consumer met plusieurs minutes à rattraper son retard.
 
 **Problème identifié:** Avec une seule partition et un seul consumer, le système ne tient pas la charge !
 
 ---
 
-## Partie 4 : Optimisation avec les Partitions et Consumer Groups (20 min)
+## Partie 4 : Optimisation avec les Partitions et Consumer Groups
 
 ### 4.1 Comprendre les partitions
 
-Les partitions permettent de paralléliser le traitement des messages.
+Les partitions permettent de paralléliser le traitement des messages. **Chaque partition ne peut être lue que par UN seul consumer du même groupe.**
 
 ```
-                                        Topic: payment-successful
-                ┌─────────────────────────────────────────┐
-                │  Partition 0  │  Partition 1  │  Partition 2  │
-                └───────┬───────┴───────┬───────┴───────┬───────┘
-                                │               │               │
-                                ▼               ▼               ▼
-                     Consumer 1      Consumer 2      Consumer 3
+                    Topic: payment-successful (3 partitions)
+        ┌─────────────────┬─────────────────┬─────────────────┐
+        │   Partition 0   │   Partition 1   │   Partition 2   │
+        │   (messages     │   (messages     │   (messages     │
+        │    1, 4, 7...)  │    2, 5, 8...)  │    3, 6, 9...)  │
+        └────────┬────────┴────────┬────────┴────────┬────────┘
+                 │                 │                 │
+                 ▼                 ▼                 ▼
+            Consumer 1        Consumer 2        Consumer 3
+            (10 msg/s)        (10 msg/s)        (10 msg/s)
+                              
+                    = 30 messages/seconde au total!
 ```
 
-### 4.2 Recréer les topics avec plus de partitions
+**Règle importante:** Nombre de consumers ≤ Nombre de partitions
+
+### 4.2 Arrêter les services et recréer les topics
 
 ```bash
+# Arrêtez tous vos services (Ctrl+C)
+
 # Supprimer les anciens topics
 docker exec -it kafka kafka-topics --bootstrap-server localhost:9092 \
     --delete --topic payment-successful
@@ -786,36 +859,63 @@ docker exec -it kafka kafka-topics --bootstrap-server localhost:9092 \
     --create --topic order-created --partitions 3 --replication-factor 1
 ```
 
-### 4.3 Lancer plusieurs instances du consumer
+### 4.3 Lancer 3 instances du consumer
+
+Ouvrez **3 terminaux** et lancez une instance du service dans chacun :
 
 **Terminal 1:**
 ```bash
-python order-service/service.py  # Port 8001
+python order-service/service.py
 ```
 
-**Terminal 2:** (modifiez le port dans le code ou utilisez une variable d'env)
+**Terminal 2:**
 ```bash
-PORT=8011 python order-service/service.py
+python order-service/service.py
 ```
 
 **Terminal 3:**
 ```bash
-PORT=8012 python order-service/service.py
+python order-service/service.py
 ```
 
-### 4.4 Vérifier la distribution
+> 💡 Les 3 instances partagent le même `group.id`, donc Kafka va automatiquement distribuer les partitions entre elles !
+
+### 4.4 Vérifier la distribution dans Kafka UI
 
 1. Allez sur Kafka UI : http://localhost:8080
-2. Cliquez sur "Consumers" → "order-service-group"
-3. Observez comment les partitions sont réparties entre les consumers
+2. Cliquez sur **"Consumers"** dans le menu
+3. Cliquez sur **"order-service-group"**
+4. Observez : chaque consumer a sa propre partition assignée !
 
-### 4.5 Relancer la simulation
+### 4.5 Relancer la simulation et comparer
 
+**Terminal 4 - Injectez à nouveau 1000 messages:**
 ```bash
-python scripts/black_friday_simulation.py --intense
+python scripts/kafka_flood.py -n 1000
 ```
 
-**Résultat attendu:** Meilleur débit et moins d'erreurs !
+**Terminal 5 - Surveillez le lag:**
+```bash
+python scripts/check_consumer_lag.py --monitor
+```
+
+### 4.6 Comparer les résultats
+
+| Configuration | Débit de traitement | Temps pour 1000 messages |
+|--------------|---------------------|--------------------------|
+| 1 partition, 1 consumer | ~10 msg/s | ~100 secondes |
+| 3 partitions, 3 consumers | ~30 msg/s | ~33 secondes |
+
+**Le lag descend 3x plus vite !**
+
+### 4.7 Test extrême
+
+Avec 3 consumers en parallèle :
+```bash
+python scripts/kafka_flood.py --intense  # 5000 messages
+```
+
+Le système gère maintenant beaucoup mieux la charge !
 
 ---
 
