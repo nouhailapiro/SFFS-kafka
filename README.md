@@ -32,7 +32,7 @@ Actuellement, votre architecture est composée de 4 microservices :
 
 ---
 
-## Partie 0 : Installation et Setup (10 min)
+## Partie 0 : Installation et Setup
 
 ### 0.1 Cloner le projet
 
@@ -77,7 +77,7 @@ C'est votre tableau de bord pour visualiser Kafka !
 
 ---
 
-## Partie 1 : Découverte de Kafka CLI (15 min)
+## Partie 1 : Découverte de Kafka CLI
 
 Avant de coder, familiarisons-nous avec les commandes Kafka.
 
@@ -141,11 +141,106 @@ Tapez un message et appuyez sur Entrée. Vous devriez le voir apparaître dans l
 
 ---
 
-## Partie 2 : Intégration Kafka dans les Services (25 min)
+## Partie 2 : Intégration Kafka dans les Services
 
 ### 2.1 Le Service de Paiement (Producer)
 
-Le service de paiement est déjà implémenté avec Kafka. Examinez le fichier `payment-service/service.py`.
+**Objectif:** Modifier `payment-service/service.py` pour envoyer un message Kafka lorsqu'un paiement est effectué.
+
+**TODO:**
+
+1. Importer le Producer Kafka depuis `confluent_kafka`
+2. Créer la configuration du producer
+3. Créer une fonction `delivery_report` pour logger le résultat de l'envoi
+4. Produire un message sur le topic `payment-successful` après traitement du paiement
+
+<details>
+<summary>Indices</summary>
+
+```python
+from confluent_kafka import Producer
+
+producer_config = {
+    "bootstrap.servers": "localhost:9092"
+}
+
+producer = Producer(producer_config)
+
+# Pour envoyer un message :
+producer.produce(
+    topic="payment-successful",
+    value=json.dumps(event).encode("utf-8"),
+    callback=delivery_report
+)
+producer.flush()  # Attendre que le message soit envoyé
+```
+</details>
+
+<details>
+<summary>Solution complète</summary>
+
+```python
+from flask import Flask, request, jsonify
+import time
+import json
+from confluent_kafka import Producer
+
+app = Flask(__name__)
+
+producer_config = {
+    "bootstrap.servers": "localhost:9092"
+}
+
+producer = Producer(producer_config)
+
+def delivery_report(err, msg):
+    if err:
+        print(f"❌ Kafka delivery failed: {err}")
+    else:
+        print(f"✅ Message sent to topic {msg.topic()} partition[{msg.partition()}]")
+
+@app.route('/payment', methods=['POST'])
+def process_payment():
+    data = request.get_json()
+    cart = data.get('cart')
+    user_id = data.get('user_id')
+    
+    print(f"💳 Traitement du paiement pour l'utilisateur {user_id}")
+    print(f"Panier: {cart}")
+    
+    # Créer l'événement à envoyer
+    event = {
+        "user_id": user_id,
+        "cart": cart,
+        "timestamp": time.time()
+    }
+
+    # Envoyer le message à Kafka
+    producer.produce(
+        topic="payment-successful",
+        value=json.dumps(event).encode("utf-8"),
+        callback=delivery_report
+    )
+    producer.flush()
+    
+    time.sleep(2)
+    
+    return jsonify({
+        "status": "success",
+        "message": "Paiement effectué avec succès",
+        "user_id": user_id,
+        "cart": cart
+    }), 200
+
+@app.errorhandler(Exception)
+def handle_error(error):
+    return jsonify({"error": str(error)}), 500
+
+if __name__ == '__main__':
+    print("🚀 Service de paiement démarré sur le port 8000")
+    app.run(host='0.0.0.0', port=8000, debug=False)
+```
+</details>
 
 **Lancez le service :**
 ```bash
@@ -159,7 +254,7 @@ curl -X POST http://localhost:8000/payment \
     -d '{"user_id": 1, "cart": [{"name": "iPhone", "price": 999, "quantity": 1}]}'
 ```
 
-**Vérification:** Regardez le topic `payment-successful` dans Kafka UI.
+**Vérification:** Regardez le topic `payment-successful` dans Kafka UI. Vous devriez voir votre message !
 
 ### 2.2 Le Service de Commande (Consumer)
 
