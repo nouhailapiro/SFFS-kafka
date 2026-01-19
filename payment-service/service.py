@@ -6,7 +6,7 @@ from confluent_kafka import Producer
 app = Flask(__name__)
 
 producer_config = {
-    "bootstrap.servers": "localhost:9092"
+    "bootstrap.servers": "localhost:9094"
 }
 
 producer = Producer(producer_config)
@@ -15,7 +15,7 @@ def delivery_report(err, msg):
     if err:
         print(f"❌ Kafka delivery failed: {err}")
     else:
-        print(f"✅ Message sent to {msg.topic()} [{msg.partition()}]")
+        print(f"✅ Message sent to topic {msg.topic()} partition[{msg.partition()}]")
 
 @app.route('/payment', methods=['POST'])
 def process_payment():
@@ -41,7 +41,7 @@ def process_payment():
         callback=delivery_report
     )
 
-    producer.poll(0)
+    producer.flush()
     
     # Simulation d'un délai de traitement
     time.sleep(2)
