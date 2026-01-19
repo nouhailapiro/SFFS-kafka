@@ -1,9 +1,14 @@
+import time
+import os
 from flask import Flask, jsonify
 import json
 import threading
 from confluent_kafka import Consumer, Producer
 
 app = Flask(__name__)
+
+# Port configurable via variable d'environnement (pour lancer plusieurs instances)
+PORT = int(os.environ.get('PORT', 8001))
 
 orders = []
 
@@ -30,6 +35,8 @@ def delivery_report(err, msg):
 def process_payment_event(message):
         user_id = message.get('user_id')
         cart = message.get('cart')
+        
+        time.sleep(0.1)
         
         order = {
                 'order_id': len(orders) + 1,
@@ -77,5 +84,5 @@ if __name__ == '__main__':
         consumer_thread = threading.Thread(target=kafka_consumer_loop, daemon=True)
         consumer_thread.start()
         
-        print("Service de commande démarré sur le port 8001")
-        app.run(host='0.0.0.0', port=8001, debug=False)
+        print(f"Service de commande démarré sur le port {PORT}")
+        app.run(host='0.0.0.0', port=PORT, debug=False)

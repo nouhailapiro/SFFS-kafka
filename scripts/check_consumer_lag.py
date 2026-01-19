@@ -4,12 +4,12 @@
 Ce script affiche le lag (retard) de traitement des consumers Kafka.
 """
 
-from confluent_kafka.admin import AdminClient, ConsumerGroupTopicPartitions, TopicPartition
+from confluent_kafka.admin import AdminClient, _TopicPartition as TopicPartition
 from confluent_kafka import Consumer
 import time
 import argparse
 
-KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
+KAFKA_BOOTSTRAP_SERVERS = "localhost:9094"
 
 def get_consumer_lag(group_id, topic):
     """

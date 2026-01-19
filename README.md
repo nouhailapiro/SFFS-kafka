@@ -616,12 +616,12 @@ python order-service/service.py
 
 **Terminal 2:**
 ```bash
-python order-service/service.py
+PORT=8011 python order-service/service.py
 ```
 
 **Terminal 3:**
 ```bash
-python order-service/service.py
+PORT=8012 python order-service/service.py
 ```
 
 > 💡 Les 3 instances partagent le même `group.id`, donc Kafka va automatiquement distribuer les partitions entre elles !

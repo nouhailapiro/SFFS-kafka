@@ -12,7 +12,7 @@ import time
 import argparse
 
 # Configuration
-KAFKA_BOOTSTRAP_SERVERS = "localhost:9092"
+KAFKA_BOOTSTRAP_SERVERS = "localhost:9094"
 
 # Produits disponibles pour le Black Friday
 PRODUCTS = [
