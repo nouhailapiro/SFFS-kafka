@@ -1,7 +1,7 @@
 from flask import Flask, jsonify
 import json
 import threading
-from confluent_kafka import Consumer
+from confluent_kafka import Consumer, Producer
 
 app = Flask(__name__)
 
@@ -13,7 +13,19 @@ consumer_config = {
         "auto.offset.reset": "earliest"
 }
 
+producer_config = {
+    "bootstrap.servers": "localhost:9094"
+}
+
 consumer = Consumer(consumer_config)
+producer = Producer(producer_config)
+
+def delivery_report(err, msg):
+    if err:
+        print(f"❌ Kafka delivery failed: {err}")
+    else:
+        print(f"✅ Message sent to {msg.topic()} [partition {msg.partition()}]")
+
 
 def send_confirmation_email(message):
         user_id = message.get('user_id')
@@ -27,6 +39,22 @@ def send_confirmation_email(message):
         
         emails_sent.append(email)
         print(f"Email envoyé: {email['subject']} à {email['to']}")
+
+        # Produire un message dans le topic 'email-sent'
+        email_event = {
+                'user_id': user_id,
+                'order_id': order_id,
+                'email_to': email['to'],
+                'subject': email['subject'],
+                'status': 'sent'
+        }
+        
+        producer.produce(
+                topic="email-sent",
+                value=json.dumps(email_event).encode("utf-8"),
+                callback=delivery_report
+        )
+        producer.flush()
 
 def kafka_consumer_loop():
         consumer.subscribe(["order-created"])
