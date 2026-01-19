@@ -1,13 +1,27 @@
 from flask import Flask, request, jsonify
 import time
+import json
+from confluent_kafka import Producer
 
 app = Flask(__name__)
+
+producer_config = {
+    "bootstrap.servers": "localhost:9092"
+}
+
+producer = Producer(producer_config)
+
+def delivery_report(err, msg):
+    if err:
+        print(f"❌ Kafka delivery failed: {err}")
+    else:
+        print(f"✅ Message sent to {msg.topic()} [{msg.partition()}]")
 
 @app.route('/payment', methods=['POST'])
 def process_payment():
     data = request.get_json()
-    cart = data.get('cart', [])
-    user_id = data.get('user_id', '123')  # Simulé pour l'exemple
+    cart = data.get('cart')
+    user_id = data.get('user_id')  # Simulé pour l'exemple
     
     # Simulation du traitement du paiement
     print(f"💳 Traitement du paiement pour l'utilisateur {user_id}")
@@ -15,6 +29,19 @@ def process_payment():
     
     # TODO: Intégration Kafka ici
     # Le producteur enverra un message au topic 'payment-successful'
+    event = {
+        "user_id": user_id,
+        "cart": cart,
+        "timestamp": time.time()
+    }
+
+    producer.produce(
+        topic="payment-successful",
+        value=json.dumps(event).encode("utf-8"),
+        callback=delivery_report
+    )
+
+    producer.poll(0)
     
     # Simulation d'un délai de traitement
     time.sleep(2)
