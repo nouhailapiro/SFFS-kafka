@@ -4,18 +4,23 @@ import json
 
 app = Flask(__name__)
 
-# TODO: Importer le Producer depuis confluent_kafka
+# TODO Partie 2.1: Importer le Producer depuis confluent_kafka
+# Référence: https://github.com/confluentinc/confluent-kafka-python
+# Vous devez importer Producer depuis confluent_kafka
 
-# TODO: Créer la configuration du producer
+# TODO Partie 2.1: Créer la configuration du producer
+# La configuration doit contenir bootstrap.servers pointant vers localhost:9094
 # producer_config = { ... }
 
-# TODO: Créer l'instance du producer
+# TODO Partie 2.1: Créer l'instance du producer
+# producer = Producer(producer_config)
 
 def delivery_report(err, msg):
+    """Callback pour confirmer l'envoi du message Kafka"""
     if err:
-        print(f"Kafka delivery failed: {err}")
+        print(f"❌ Kafka delivery failed: {err}")
     else:
-        print(f"Message sent to topic {msg.topic()} partition[{msg.partition()}]")
+        print(f"✅ Message sent to topic {msg.topic()} partition[{msg.partition()}]")
         
 @app.route('/payment', methods=['POST'])
 def process_payment():
@@ -27,14 +32,22 @@ def process_payment():
     print(f"💳 Traitement du paiement pour l'utilisateur {user_id}")
     print(f"Panier: {cart}")
     
-    # TODO: Créer l'événement à envoyer
+    # TODO Partie 2.1: Créer l'événement à envoyer
+    # L'événement doit être un dictionnaire avec:
+    # - user_id
+    # - cart
+    # - timestamp (utiliser time.time())
     # event = {
     #     "user_id": user_id,
     #     "cart": cart,
     #     "timestamp": time.time()
     # }
 
-    # TODO: Envoyer le message au topic 'payment-successful' avec producer.produce()
+    # TODO Partie 2.1: Envoyer le message au topic 'payment-successful'
+    # Utilisez producer.produce() avec:
+    # - topic: "payment-successful"
+    # - value: json.dumps(event).encode("utf-8")
+    # - callback: delivery_report
     # N'oubliez pas d'appeler producer.flush() pour s'assurer que le message est envoyé
     
     # Simulation d'un délai de traitement
