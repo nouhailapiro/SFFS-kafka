@@ -9,7 +9,7 @@ import json
 import time
 
 producer_config = {
-    "bootstrap.servers": "localhost:9092"
+    "bootstrap.servers": "localhost:9094"
 }
 
 producer = Producer(producer_config)
