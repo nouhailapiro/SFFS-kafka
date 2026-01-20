@@ -101,8 +101,6 @@ def kafka_consumer_loop():
                 raise ValueError("Le nom de chaque item doit être une chaîne de caractères")
             if not all(isinstance(item.get('price'), (int, float)) and item.get('price') > 0 for item in data.get('cart', [])):
                 raise ValueError("Le prix de chaque item doit être un nombre positif")
-            """if not all(isinstance(item.get('quantity'), int) and item.get('quantity') > 0 for item in data.get('cart', [])):
-                raise ValueError("La quantité de chaque item doit être un entier positif")"""
             if any(len(item.get('name', '')) > 100 for item in data.get('cart', [])):
                 raise ValueError("Le nom de l'item est trop long")
             if contains_special_chars(str(data.get('user_id'))):

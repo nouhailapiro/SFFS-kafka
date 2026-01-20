@@ -1,21 +1,13 @@
 from flask import Flask, request, jsonify
 import time
 import json
+# TODO Importer le Producer
 
 app = Flask(__name__)
 
-# TODO: Importer le Producer depuis confluent_kafka
+# TODO Créer la configuration du producer
 
-# TODO: Créer la configuration du producer
-# producer_config = { ... }
-
-# TODO: Créer l'instance du producer
-
-def delivery_report(err, msg):
-    if err:
-        print(f"Kafka delivery failed: {err}")
-    else:
-        print(f"Message sent to topic {msg.topic()} partition[{msg.partition()}]")
+# TODO Créer l'instance du producer
         
 @app.route('/payment', methods=['POST'])
 def process_payment():
@@ -27,15 +19,10 @@ def process_payment():
     print(f"💳 Traitement du paiement pour l'utilisateur {user_id}")
     print(f"Panier: {cart}")
     
-    # TODO: Créer l'événement à envoyer
-    # event = {
-    #     "user_id": user_id,
-    #     "cart": cart,
-    #     "timestamp": time.time()
-    # }
+    # TODO Créer l'événement à envoyer
+  
 
-    # TODO: Envoyer le message au topic 'payment-successful' avec producer.produce()
-    # N'oubliez pas d'appeler producer.flush() pour s'assurer que le message est envoyé
+    # TODO Envoyer le message au topic 'payment-successful'
     
     # Simulation d'un délai de traitement
     time.sleep(2)
