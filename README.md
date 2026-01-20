@@ -850,20 +850,6 @@ docker exec -it kafka kafka-console-consumer \
 
 ---
 
-## Partie 6 : Analytics en Temps Réel
-
-> ###  Checkpoint 6
-> **Où en sommes-nous ?**  Votre système est scalable ET résilient ! Les messages en erreur sont isolés dans la DLQ.
-> 
-> **Dernière étape :** Exploiter la puissance de Kafka pour du **streaming temps réel** !
->
-> **Ce que vous allez faire :**
-> - Améliorer le service Analytics pour consommer plusieurs topics
-> - Calculer des métriques en temps réel (revenus, commandes/minute, etc.)
-> - Exposer un dashboard via API REST
->
-
-
 ## Partie 6 : Défis Bonus
 
 > ###  Checkpoint Final
@@ -875,7 +861,6 @@ docker exec -it kafka kafka-console-consumer \
 > -  Identifier les problèmes de scalabilité (LAG)
 > -  Paralléliser avec les partitions et consumer groups
 > -  Gérer les erreurs avec une Dead Letter Queue
-> -  Streamer des analytics en temps réel
 >
 > **Pour aller plus loin :** Ces défis bonus explorent des concepts avancés de Kafka en production.
 
@@ -883,13 +868,13 @@ docker exec -it kafka kafka-console-consumer \
 
 Modifiez le `docker-compose.yml` pour avoir un cluster de 3 brokers Kafka et configurez la réplication factor à 3.
 
-### Défi 2 : Exactly-once semantics
+### Défi 2 : Monitoring avec Prometheus et Grafana
+
+Intégrez des outils de monitoring pour suivre les métriques Kafka en temps réel.
+
+### Défi 3 : Exactly-once semantics
 
 Configurez les transactions Kafka pour garantir qu'un message n'est traité qu'une seule fois.
-
-### Défi 3 : Schema Registry
-
-Ajoutez un Schema Registry et utilisez Avro pour valider le format des messages.
 
 ---
 
