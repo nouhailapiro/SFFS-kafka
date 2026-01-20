@@ -163,18 +163,8 @@ Tapez un message et appuyez sur Entrée. Vous devriez le voir apparaître dans l
 > **Ce que vous allez faire :**
 > - Transformer le Payment Service en **Producer** Kafka
 > - Transformer l'Order Service en **Consumer** Kafka
-> - Créer une chaîne complète : Payment → Order → Email → Analytics
+> - Créer une chaîne complète d'événements entre les 4 services
 > - Tester l'intégration de bout en bout
->
-> 4 topics plus schéma
->
-> **Architecture cible :**
-> ```
-> Payment ──► [payment-successful] ──► Order ──► [order-created] ──► Email
->                    │                                  │
->                    └──────────► Analytics ◄──────────┘
-> ```
->
 
 ### 2.1 Le Service de Paiement (Producer)
 
