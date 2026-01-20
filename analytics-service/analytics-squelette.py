@@ -2,6 +2,7 @@ from flask import Flask, jsonify
 import json
 import threading
 import time
+# TODO Partie 2.4.1: Importer Consumer depuis confluent_kafka
 
 app = Flask(__name__)
 
@@ -15,50 +16,39 @@ analytics = {
     'last_updated': None
 }
 
-# TODO Partie 2.4 et 6: Importer Consumer depuis confluent_kafka
-# from confluent_kafka import Consumer
 
-# TODO Partie 2.4: Créer la configuration du consumer
-# La configuration doit contenir:
-# - bootstrap.servers: localhost:9094
-# - group.id: analytics-service-group
-# - auto.offset.reset: earliest
-# - enable.auto.commit: True
+
+# TODO Partie 2.4.2: Créer la configuration du consumer
 # consumer_config = { ... }
 
-# TODO Partie 2.4: Créer l'instance du consumer
+# TODO Partie 2.4.2: Créer l'instance du consumer
 # consumer = Consumer(consumer_config)
 
 def track_payment(message):
     """
     Enregistre les statistiques de paiement
-    TODO Partie 6: Calculer le revenue total du panier
     """
     user_id = message.get('user_id')
     cart = message.get('cart', [])
     
-    # Incrementer le compteur des commandes "total_payments"
-    # analytics[...] ...
-
-    # ajouter user_id à analytics['users']
-    #analytics['users']....
+    analytics['total_payments'] += 1
+    analytics['users'].add(user_id)
     
-    # TODO Partie 2.4: Calculer le total du panier
-    # Parcourir cart et summ les (price * quantity) pour chaque item
-    # total = sum(item.get('price', 0) * item.get('quantity', 1) for item in cart)
-    # Puis ajouter à analytics['total_revenue']
+    # Calculer le total du panier (simulation)
+    total = sum(item.get('price', 0) * item.get('quantity', 1) for item in cart)
+    analytics['total_revenue'] += total
     
-    print(f"📊 [Payment] Paiement enregistré pour l'utilisateur {user_id}")
+    print(f"📊 Paiement enregistré: {total}€ pour l'utilisateur {user_id}")
 
 def track_order(message):
     """
     Enregistre les statistiques de commande
     """
     order_id = message.get('order_id')
-    # Incrementer le compteur des commandes "total_orders"
-    # analytics[...] ...
     
-    print(f"📊 [Order] Commande enregistrée: #{order_id}")
+    analytics['total_orders'] += 1
+    
+    print(f"📊 Commande enregistrée: #{order_id}")
 
 def track_email(message):
     """
@@ -66,10 +56,10 @@ def track_email(message):
     """
     order_id = message.get('order_id')
     email_to = message.get('email_to')
-    # Incrementer le compteur des commandes "total_emails"
-    # analytics[...] ...
     
-    print(f"📊 [Email] Email enregistré: {email_to} pour commande #{order_id}")
+    analytics['total_emails'] += 1
+    
+    print(f"📊 Email enregistré: {email_to} pour commande #{order_id}")
 
 @app.route('/analytics', methods=['GET'])
 def get_analytics():
@@ -103,7 +93,7 @@ def kafka_consumer_loop():
        - Si msg.topic() == "email-sent": appeler track_email(data)
     7. Gérer les exceptions json.JSONDecodeError et autres exceptions
     """
-    # TODO Partie 2.4: Implémenter la boucle
+    # TODO Partie 2.4.3: Implémenter la boucle
     # S'abonner à plusieurs topics (à completer)
     # consumer.subscribe([...])
     print("🎧 Consumer démarré, écoute sur 3 topics:")
@@ -122,9 +112,10 @@ def kafka_consumer_loop():
                 print(f"❌ Consumer error: {msg.error()}")
                 continue
             
-            # Décoder le message
+            
             try:
-                message_value = json.loads(msg.value().decode('utf-8'))
+                # Décoder le message
+                # message_value = ...
                 topic = msg.topic()
                 
                 print(f"📨 Message reçu de '{topic}'")
@@ -137,16 +128,16 @@ def kafka_consumer_loop():
                 # elif topic == "email-sent":
                     # router vers track_email
                 # else:
-                    #print(f"⚠️ Topic inconnu: {topic}")
+                    #print(f" Topic inconnu: {topic}")
 
-            # décommenter une fois la boucle implémentée
+            
             except json.JSONDecodeError as e:
-                print(f"❌ Erreur de décodage JSON: {e}")
+                print(f"Erreur de décodage JSON: {e}")
             except Exception as e:
-                print(f"❌ Erreur lors du traitement: {e}")
+                print(f"Erreur lors du traitement: {e}")
 
     except KeyboardInterrupt:
-        print("🛑 Arrêt du consumer...")
+        print("Arrêt du consumer...")
     finally:
         consumer.close()
 

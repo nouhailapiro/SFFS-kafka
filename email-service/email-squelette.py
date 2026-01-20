@@ -1,28 +1,22 @@
 from flask import Flask, jsonify
 import json
 import threading
+# TODO Partie 2.3.1: Importer Consumer et Producer depuis confluent_kafka
 
 app = Flask(__name__)
 
 # Historique des emails envoyés
 emails_sent = []
 
-# TODO Partie 2.3: Importer Consumer et Producer depuis confluent_kafka
-# from confluent_kafka import Consumer, Producer
+# TODO Partie 2.3.1: Importer Consumer et Producer depuis confluent_kafka
 
-# TODO Partie 2.3: Créer la configuration du consumer
-# La configuration doit contenir:
-# - bootstrap.servers: localhost:9094
-# - group.id: email-service-group
-# - auto.offset.reset: earliest
+
+# TODO Partie 2.3.2: Créer la configuration du consumer et du producer
 # consumer_config = { ... }
-
-# TODO Partie 2.3: Créer la configuration du producer
 # producer_config = { ... }
 
-# TODO Partie 2.3: Créer les instances du consumer et producer
-# consumer = Consumer(consumer_config)
-# producer = Producer(producer_config)
+# TODO Partie 2.3.2: Créer les instances du consumer et producer
+
 
 def delivery_report(err, msg):
     """Callback pour confirmer l'envoi du message Kafka"""
@@ -44,11 +38,11 @@ def send_confirmation_email(message):
         'subject': f'Confirmation de commande #{order_id}',
         'body': f'Votre commande #{order_id} a été confirmée avec succès!'
     }
-    # ajouter l'email à l'historique "emails_sent"
+    emails_sent.append(email)
     
     print(f"📧 Email envoyé: {email['subject']} à {email['to']}")
 
-    # TODO Partie 2.3: Produire un message au topic 'email-sent'
+    # TODO Partie 2.3.3: Produire un message au topic 'email-sent'
     # Le message doit contenir:
     # - user_id
     # - order_id
@@ -67,19 +61,16 @@ def get_emails():
 
 def kafka_consumer_loop():
     """
-    TODO Partie 2.3: Boucle de consommation Kafka
+    TODO Partie 2.3.4: Boucle de consommation Kafka
     - S'abonner au topic 'order-created'
     - Écouter les messages
     - Parser le JSON
     - Appeler send_confirmation_email() pour chaque message
-    - Gérer les erreurs
     """
-    # TODO Partie 2.3: Implémenter la boucle
+
     # consumer.subscribe() à order-created"
     # print(" Consumer démarré, en écoute sur 'order-created'...")
-    # while True:
-    #     msg = consumer.poll(1.0)
-    #     ...
+
     while True:
         # msg = ...
         
@@ -96,7 +87,7 @@ def kafka_consumer_loop():
             print(f"Erreur de traitement: {e}")
 
 if __name__ == '__main__':
-    # TODO Partie 2.3: Décommenter une fois la boucle de consumer implémentée
+    # TODO Partie 2.3.4: Décommenter une fois la boucle de consumer implémentée
     # consumer_thread = threading.Thread(target=kafka_consumer_loop, daemon=True)
     # consumer_thread.start()
 
