@@ -833,30 +833,25 @@ python scripts/kafka_flood.py -n 1000
 
 Vous verrez que les 1000 messages sont envoyés en quelques secondes.
 
-### 3.4 Observer le LAG
+### 3.4 Observer le lag dans Kafka UI
 
-**Terminal 3 - Surveillez le lag en temps réel:**
-```bash
-python scripts/check_consumer_lag.py --monitor
-```
+**Ouvrez Kafka UI :** http://localhost:8080
+
+1. Cliquez sur **"Consumers"** dans le menu de gauche
+2. Cliquez sur **"order-service-group"**
+3. Observez la colonne **"Lag"** pour le topic `payment-successful`
 
 Vous devriez voir quelque chose comme :
-```
- 14:32:15
-   order-service-group → payment-successful:  Lag = 847
- 14:32:17
-   order-service-group → payment-successful:  Lag = 823
- 14:32:19
-   order-service-group → payment-successful:  Lag = 801
-```
 
-**Le consumer traite ~10 messages/seconde, mais on en a injecté 1000 en 2 secondes !**
+| Topic | Partition | Current Offset | End Offset | **Lag** |
+|-------|-----------|----------------|------------|---------|
+| payment-successful | 0 | 153 | 1000 | **847** |
 
-Pour vous amusez , vous pouvez aussi tester avec le flag --intense ou --extreme.  
+**Le consumer traite ~10 messages/seconde, mais on en a injecté 1000 en quelques secondes !**
 
-Le lag explose ! Votre unique consumer met plusieurs minutes à rattraper son retard.
+Rafraîchissez la page régulièrement pour voir le lag diminuer lentement.
 
-**Problème identifié:** Avec une seule partition et un seul consumer, le système ne tient pas la charge !
+**Problème identifié:** Avec une seule partition et un seul consumer, le système ne tient pas la charge ! Votre unique consumer met plusieurs minutes à rattraper son retard.
 
 ---
 
@@ -1082,10 +1077,10 @@ Avec vos 3 consumers actifs, relancez le flood :
 python scripts/kafka_flood.py -n 1000
 ```
 
-**Surveillez le lag :**
-```bash
-python scripts/check_consumer_lag.py --monitor
-```
+**Surveillez le lag dans Kafka UI :**
+1. Allez sur http://localhost:8080
+2. Cliquez sur **"Consumers"** → **"order-service-group"**
+3. Observez le lag diminuer beaucoup plus rapidement qu'avant !
 
 | Configuration | Débit de traitement | Temps pour 1000 messages |
 |--------------|---------------------|--------------------------|
