@@ -1052,24 +1052,7 @@ Terminal 3 (Instance #3) :
 | Instance 2 | Partition 1 |
 | Instance 3 | Partition 2 |
 
-### 4.8 Expérience : Que se passe-t-il si un consumer tombe ?
-
-1. **Arrêtez l'Instance #2** (Ctrl+C dans le Terminal 2)
-2. Attendez quelques secondes (rebalancing)
-3. Envoyez de nouveaux messages
-
-**Résultat :** Les instances #1 et #3 se répartissent maintenant les 3 partitions !
-
-```
-Terminal 1 (Instance #1) :
- [Instance #1] [Partition 0] [Offset 3] User 11
- [Instance #1] [Partition 1] [Offset 3] User 12  ← Récupère la Partition 1 !
-
-Terminal 3 (Instance #3) :
- [Instance #3] [Partition 2] [Offset 3] User 13
-```
-
-### 4.9 Relancer la simulation Black Friday
+### 4.8 Relancer la simulation Black Friday
 
 Avec vos 3 consumers actifs, relancez le flood :
 
@@ -1088,6 +1071,23 @@ python scripts/kafka_flood.py -n 1000
 | 3 partitions, 3 consumers | ~30 msg/s | ~33 secondes |
 
 **Le lag descend 3x plus vite !**
+
+### 4.9 Expérience : Que se passe-t-il si un consumer tombe ?
+
+1. **Arrêtez l'Instance #2** (Ctrl+C dans le Terminal 2)
+2. Attendez quelques secondes (rebalancing)
+3. Envoyez de nouveaux messages
+
+**Résultat :** Les instances #1 et #3 se répartissent maintenant les 3 partitions !
+
+```
+Terminal 1 (Instance #1) :
+ [Instance #1] [Partition 0] [Offset 3] User 11
+ [Instance #1] [Partition 1] [Offset 3] User 12  ← Récupère la Partition 1 !
+
+Terminal 3 (Instance #3) :
+ [Instance #3] [Partition 2] [Offset 3] User 13
+```
 
 ### 4.10 Questions de réflexion
 
