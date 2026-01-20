@@ -10,10 +10,12 @@ app = Flask(__name__)
 
 # TODO Partie 2.1: Créer la configuration du producer
 # La configuration doit contenir bootstrap.servers pointant vers localhost:9094
-# producer_config = { ... }
+# producer_config = {
+#    "bootstrap.servers": "localhost:9094"
+#}
 
 # TODO Partie 2.1: Créer l'instance du producer
-# producer = Producer(producer_config)
+# producer = ...
 
 def delivery_report(err, msg):
     """Callback pour confirmer l'envoi du message Kafka"""

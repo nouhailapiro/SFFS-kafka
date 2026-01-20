@@ -44,8 +44,8 @@ def send_confirmation_email(message):
         'subject': f'Confirmation de commande #{order_id}',
         'body': f'Votre commande #{order_id} a été confirmée avec succès!'
     }
+    # ajouter l'email à l'historique "emails_sent"
     
-    emails_sent.append(email)
     print(f"📧 Email envoyé: {email['subject']} à {email['to']}")
 
     # TODO Partie 2.3: Produire un message au topic 'email-sent'
@@ -56,6 +56,9 @@ def send_confirmation_email(message):
     # - subject
     # - status: 'sent'
     # Utilisez producer.produce() et producer.flush()
+    # email_event = 
+    # producer.produce(...)
+    # producer.flush()
 
 @app.route('/emails', methods=['GET'])
 def get_emails():
@@ -72,11 +75,25 @@ def kafka_consumer_loop():
     - Gérer les erreurs
     """
     # TODO Partie 2.3: Implémenter la boucle
-    # consumer.subscribe(["order-created"])
+    # consumer.subscribe() à order-created"
     # print(" Consumer démarré, en écoute sur 'order-created'...")
     # while True:
     #     msg = consumer.poll(1.0)
     #     ...
+    while True:
+        # msg = ...
+        
+        if msg is None:
+                continue
+        if msg.error():
+                print(f"Erreur: {msg.error()}")
+                continue
+                
+        try:
+            data = json.loads(msg.value().decode('utf-8'))
+            send_confirmation_email(data)
+        except Exception as e:
+            print(f"Erreur de traitement: {e}")
 
 if __name__ == '__main__':
     # TODO Partie 2.3: Décommenter une fois la boucle de consumer implémentée

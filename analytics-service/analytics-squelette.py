@@ -37,10 +37,13 @@ def track_payment(message):
     user_id = message.get('user_id')
     cart = message.get('cart', [])
     
-    analytics['total_payments'] += 1
-    analytics['users'].add(user_id)
+    # Incrementer le compteur des commandes "total_payments"
+    # analytics[...] ...
+
+    # ajouter user_id à analytics['users']
+    #analytics['users']....
     
-    # TODO Partie 6: Calculer le total du panier
+    # TODO Partie 2.4: Calculer le total du panier
     # Parcourir cart et summ les (price * quantity) pour chaque item
     # total = sum(item.get('price', 0) * item.get('quantity', 1) for item in cart)
     # Puis ajouter à analytics['total_revenue']
@@ -52,8 +55,8 @@ def track_order(message):
     Enregistre les statistiques de commande
     """
     order_id = message.get('order_id')
-    
-    analytics['total_orders'] += 1
+    # Incrementer le compteur des commandes "total_orders"
+    # analytics[...] ...
     
     print(f"📊 [Order] Commande enregistrée: #{order_id}")
 
@@ -63,8 +66,8 @@ def track_email(message):
     """
     order_id = message.get('order_id')
     email_to = message.get('email_to')
-    
-    analytics['total_emails'] += 1
+    # Incrementer le compteur des commandes "total_emails"
+    # analytics[...] ...
     
     print(f"📊 [Email] Email enregistré: {email_to} pour commande #{order_id}")
 
@@ -101,6 +104,51 @@ def kafka_consumer_loop():
     7. Gérer les exceptions json.JSONDecodeError et autres exceptions
     """
     # TODO Partie 2.4: Implémenter la boucle
+    # S'abonner à plusieurs topics (à completer)
+    # consumer.subscribe([...])
+    print("🎧 Consumer démarré, écoute sur 3 topics:")
+    print("   - payment-successful")
+    print("   - order-created")
+    print("   - email-sent")
+    
+    try:
+        while True:
+            msg = consumer.poll(timeout=1.0)
+            
+            if msg is None:
+                continue
+            
+            if msg.error():
+                print(f"❌ Consumer error: {msg.error()}")
+                continue
+            
+            # Décoder le message
+            try:
+                message_value = json.loads(msg.value().decode('utf-8'))
+                topic = msg.topic()
+                
+                print(f"📨 Message reçu de '{topic}'")
+                
+                # Router vers la bonne fonction selon le topic
+                if topic == "payment-successful":
+                    track_payment(message_value)
+                # elif topic == "order-created":
+                    # router vers track_order
+                # elif topic == "email-sent":
+                    # router vers track_email
+                # else:
+                    #print(f"⚠️ Topic inconnu: {topic}")
+
+            # décommenter une fois la boucle implémentée
+            except json.JSONDecodeError as e:
+                print(f"❌ Erreur de décodage JSON: {e}")
+            except Exception as e:
+                print(f"❌ Erreur lors du traitement: {e}")
+
+    except KeyboardInterrupt:
+        print("🛑 Arrêt du consumer...")
+    finally:
+        consumer.close()
 
 if __name__ == '__main__':
     # TODO Partie 2.4: Décommenter une fois la boucle de consumer implémentée
