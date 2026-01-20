@@ -2,20 +2,12 @@
 
 ## Contexte
 
-Vous êtes développeur dans une startup e-commerce. Le **Black Friday** approche et votre plateforme doit gérer un pic de trafic 100x supérieur à la normale ! 
+Ce TP simule un petit écosystème e-commerce composé de 4 microservices : `payment-service`, `order-service`, `email-service` et `analytics-service`.
+L'objectif est d'implémenter une communication asynchrone entre ces services en utilisant Apache Kafka : les services échangent des événements (paiement réussi, commande créée, e-mail envoyé, etc.) via des topics Kafka.
 
-Actuellement, votre architecture est composée de 4 microservices :
+Le scénario représente un pic d'activité typique du "Black Friday" : forte charge de trafic, besoin de scalabilité (partitions + consumer groups) et de résilience (gestion des messages empoisonnés, DLQ). Ce TP vous guide pour transformer des squelettes de services en une architecture événement-driven capable de tenir une charge importante.
 
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Payment   │ ──► │    Order    │ ──► │    Email    │     │  Analytics  │
-│   Service   │     │   Service   │     │   Service   │     │   Service   │
-└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
-```
-
-**Le problème:** Ces services communiquent de manière synchrone. Lors du Black Friday, si un service est surchargé, tout le système s'effondre ! 
-
-**La solution:** Apache Kafka ! 
+**La solution :** Apache Kafka
 
 ---
 
@@ -28,7 +20,6 @@ Actuellement, votre architecture est composée de 4 microservices :
 - Configurer les partitions et la réplication
 - Utiliser les consumer groups pour la scalabilité
 - Gérer les messages empoisonnés (poison pills)
-- Implémenter du streaming en temps réel
 
 ---
 
@@ -86,6 +77,10 @@ C'est votre tableau de bord pour visualiser Kafka !
 
 ---
 
+## Architecture à réaliser dans ce TP:
+![Architecture Kafka](asset/Schema_tp_kafka.png)
+Lorsqu’un paiement est validé, le service Payment publie un événement dans le topic payment-successful, consommé par le service Order afin de mettre à jour l’état de la commande. Le service Order publie ensuite un événement dans le topic order-created, qui est consommé par le service Email pour envoyer une notification à l’utilisateur. Une fois l’email envoyé, le service Email publie à son tour un événement dans le topic email-sent. En parallèle, le service Analytics consomme les événements des topics payment-successful, order-created et email-sent afin de collecter des données, produire des statistiques et analyser le comportement global du système. Cette approche favorise un fort découplage entre les services, une meilleure scalabilité et une grande flexibilité pour l’ajout de nouveaux consommateurs.
+
 ## Partie 1 : Découverte de Kafka CLI
 
 > ###  Checkpoint 1
@@ -98,6 +93,7 @@ C'est votre tableau de bord pour visualiser Kafka !
 >
 
 Avant de coder, familiarisons-nous avec les commandes Kafka.
+
 
 ### 1.1 Créer votre premier topic
 
@@ -119,7 +115,6 @@ Créez les topics suivants avec la même commande :
 |-------|-------------|
 | `order-created` | Événements de création de commande |
 | `email-sent` | Événements d'envoi d'emails
-| `dlq-payment` | Dead Letter Queue pour les erreurs |
 
 <details>
 <summary>Solution</summary>
@@ -130,9 +125,6 @@ docker exec -it kafka kafka-topics --bootstrap-server localhost:9092 \
 
 docker exec -it kafka kafka-topics --bootstrap-server localhost:9092 \
     --create --topic email-sent --partitions 1 --replication-factor 1
-
-docker exec -it kafka kafka-topics --bootstrap-server localhost:9092 \
-    --create --topic dlq-payment --partitions 1 --replication-factor 1
 ```
 </details>
 
@@ -174,6 +166,8 @@ Tapez un message et appuyez sur Entrée. Vous devriez le voir apparaître dans l
 > - Créer une chaîne complète : Payment → Order → Email → Analytics
 > - Tester l'intégration de bout en bout
 >
+> 4 topics plus schéma
+>
 > **Architecture cible :**
 > ```
 > Payment ──► [payment-successful] ──► Order ──► [order-created] ──► Email
@@ -186,100 +180,58 @@ Tapez un message et appuyez sur Entrée. Vous devriez le voir apparaître dans l
 
 **Objectif:** Modifier `payment-service/service.py` pour envoyer un message Kafka lorsqu'un paiement est effectué.
 
-**TODO:**
 
-1. Importer le Producer Kafka depuis `confluent_kafka`
-2. Créer la configuration du producer
-3. Créer une fonction `delivery_report` pour logger le résultat de l'envoi
-4. Produire un message sur le topic `payment-successful` après traitement du paiement
+**Guidé (pas à pas) :**
 
-<details>
-<summary>Indices</summary>
+1. Importer le `Producer` depuis `confluent_kafka`
 
 ```python
+# À ajouter en tête de `payment-service/service.py`
 from confluent_kafka import Producer
+import json
+import time
+```
 
-producer_config = {
-    "bootstrap.servers": "localhost:9092"
-}
+on importe `Producer` pour envoyer des messages et `json`/`time` pour construire l'événement.
 
+1. Créer la configuration et l'instance du producer
+
+```python
+# Config et instance (réutiliser la même instance pour l'application)
+producer_config = {"bootstrap.servers": "localhost:9092"}
 producer = Producer(producer_config)
+```
 
-# Pour envoyer un message :
+`bootstrap.servers` pointe vers le broker Kafka.
+
+1. Ajouter une fonction de callback `delivery_report` pour logger le résultat
+
+```python
+def delivery_report(err, msg):
+    if err:
+        print(f"Kafka delivery failed: {err}")
+    else:
+        print(f"Message envoyé → topic:{msg.topic()} partition:{msg.partition()} offset:{msg.offset()}")
+```
+
+Le callback permet de confirmer l'envoi asynchrone et d'afficher la partition/offset pour debug.
+
+4. Produire le message `payment-successful` après traitement
+
+```python
+# Exemple à placer dans la route qui traite le paiement
+event = {"user_id": user_id, "cart": cart, "timestamp": time.time()}
+
 producer.produce(
     topic="payment-successful",
     value=json.dumps(event).encode("utf-8"),
     callback=delivery_report
 )
-producer.flush()  # Attendre que le message soit envoyé
+producer.flush()  # attendre que le message soit envoyé
 ```
-</details>
 
-<details>
-<summary>Solution complète</summary>
+L'API `produce` attend des bytes pour la `value` — d'où `json.dumps(...).encode('utf-8')`. Utiliser `flush()` permet de s'assurer que le message a bien été émis avant de terminer la requête.
 
-```python
-from flask import Flask, request, jsonify
-import time
-import json
-from confluent_kafka import Producer
-
-app = Flask(__name__)
-
-producer_config = {
-    "bootstrap.servers": "localhost:9092"
-}
-
-producer = Producer(producer_config)
-
-def delivery_report(err, msg):
-    if err:
-        print(f" Kafka delivery failed: {err}")
-    else:
-        print(f" Message sent to topic {msg.topic()} partition[{msg.partition()}]")
-
-@app.route('/payment', methods=['POST'])
-def process_payment():
-    data = request.get_json()
-    cart = data.get('cart')
-    user_id = data.get('user_id')
-    
-    print(f" Traitement du paiement pour l'utilisateur {user_id}")
-    print(f"Panier: {cart}")
-    
-    # Créer l'événement à envoyer
-    event = {
-        "user_id": user_id,
-        "cart": cart,
-        "timestamp": time.time()
-    }
-
-    # Envoyer le message à Kafka
-    producer.produce(
-        topic="payment-successful",
-        value=json.dumps(event).encode("utf-8"),
-        callback=delivery_report
-    )
-    producer.flush()
-    
-    time.sleep(2)
-    
-    return jsonify({
-        "status": "success",
-        "message": "Paiement effectué avec succès",
-        "user_id": user_id,
-        "cart": cart
-    }), 200
-
-@app.errorhandler(Exception)
-def handle_error(error):
-    return jsonify({"error": str(error)}), 500
-
-if __name__ == '__main__':
-    print(" Service de paiement démarré sur le port 8000")
-    app.run(host='0.0.0.0', port=8000, debug=False)
-```
-</details>
 
 **Lancez le service :**
 ```bash
@@ -295,112 +247,67 @@ curl -X POST http://localhost:8000/payment \
 
 **Vérification:** Regardez le topic `payment-successful` dans Kafka UI. Vous devriez voir votre message !
 
-### 2.2 Le Service de Commande (Consumer)
+### 2.2 Le Service de Commande ( Consumer / Producer )
 
-**Objectif:** Modifier `order-service/service.py` pour consommer les messages du topic `payment-successful`.
+**Objectif:** Guider pas-à-pas la création d'un consommateur dans `order-service/service.py` qui lit les événements publiés sur le topic `payment-successful` et les transforme en commandes en mémoire.
 
-**TODO:**
 
-1. Ajouter l'import du consumer Kafka
-2. Créer la configuration du consumer
-3. Implémenter la boucle de consommation
-4. Produire un message sur `order-created` après traitement
-
-<details>
-<summary>Indices</summary>
+1) Importer les modules nécessaires:
 
 ```python
-from confluent_kafka import Consumer, Producer
-
-consumer_config = {
-        "bootstrap.servers": "localhost:9092",
-        "group.id": "order-service-group",
-        "auto.offset.reset": "earliest"
-}
-
-consumer = Consumer(consumer_config)
-consumer.subscribe(["payment-successful"])
-```
-</details>
-
-<details>
-<summary>Solution complète</summary>
-
-```python
+# En tête du fichier
 from flask import Flask, jsonify
 import json
 import threading
-from confluent_kafka import Consumer, Producer
+from confluent_kafka import Consumer
+```
 
-app = Flask(__name__)
+Explication : on importe `Consumer` pour se connecter à Kafka, `json` pour décoder les messages, et `threading` pour faire tourner le consumer en arrière-plan.
 
-orders = []
+2) Créer la configuration et l'instance du consumer
 
-# Configuration Kafka
+```python
+# Configuration du consumer (à adapter si besoin)
 consumer_config = {
-        "bootstrap.servers": "localhost:9092",
-        "group.id": "order-service-group",
-        "auto.offset.reset": "earliest"
-}
-
-producer_config = {
-        "bootstrap.servers": "localhost:9092"
+    "bootstrap.servers": "localhost:9092",
+    "group.id": "order-service-group",
+    "auto.offset.reset": "earliest"
 }
 
 consumer = Consumer(consumer_config)
-producer = Producer(producer_config)
+```
 
-def delivery_report(err, msg):
-        if err:
-                print(f"Échec envoi: {err}")
-        else:
-                print(f"Message envoyé à {msg.topic()}")
+Explication : `group.id` permet le scalabilité via consumer groups. `auto.offset.reset: earliest` garantit que le consumer lit depuis le début si aucun offset n'existe.
 
-def process_payment_event(message):
-        user_id = message.get('user_id')
-        cart = message.get('cart')
-        
-        order = {
-                'order_id': len(orders) + 1,
-                'user_id': user_id,
-                'items': cart,
-                'status': 'confirmed'
-        }
-        
-        orders.append(order)
-        print(f"Nouvelle commande créée: {order}")
-        
-        # Produire l'événement order-created
-        producer.produce(
-                topic="order-created",
-                value=json.dumps(order).encode("utf-8"),
-                callback=delivery_report
-        )
-        producer.poll(0)
 
+3) Implémenter la boucle du consumer (lecture et décodage)
+
+```python
 def kafka_consumer_loop():
-        consumer.subscribe(["payment-successful"])
-        print("Consumer démarré, en écoute sur 'payment-successful'...")
-        
+    consumer.subscribe(["payment-successful"])
+    print("Consumer démarré, en écoute sur 'payment-successful'...")
+
+    try:
         while True:
-                msg = consumer.poll(1.0)
-                
-                if msg is None:
-                        continue
-                if msg.error():
-                        print(f"Erreur: {msg.error()}")
-                        continue
-                        
-                try:
-                        data = json.loads(msg.value().decode('utf-8'))
-                        process_payment_event(data)
-                except Exception as e:
-                        print(f"Erreur de traitement: {e}")
+            msg = consumer.poll(1.0)
 
-@app.route('/orders', methods=['GET'])
-def get_orders():
-        return jsonify({"orders": orders}), 200
+            if msg is None:
+                continue
+            if msg.error():
+                print(f"Erreur consumer: {msg.error()}")
+                continue
 
+            try:
+                # Décoder la charge utile (value) en JSON
+                payload = json.loads(msg.value().decode('utf-8'))
+                process_payment_event(payload)
+            except Exception as e:
+                print(f"Erreur de traitement: {e}")
+    finally:
+        consumer.close()
+```
+
+```python
 if __name__ == '__main__':
         # Lancer le consumer dans un thread séparé
         consumer_thread = threading.Thread(target=kafka_consumer_loop, daemon=True)
@@ -409,9 +316,21 @@ if __name__ == '__main__':
         print("Service de commande démarré sur le port 8001")
         app.run(host='0.0.0.0', port=8001, debug=False)
 ```
-</details>
 
-### 2.3 Le Service Email (Consumer)
+Explication : la boucle utilise `consumer.poll()` pour récupérer les messages. On décode `msg.value()` en UTF-8 puis en JSON, et on appelle la fonction de traitement. Les exceptions sont attrapées pour éviter que le consumer plante sur un message invalide.
+
+5) A vous de jouer ! Émettre l'événement `order-created` depuis `order-service`
+
+Indication : réutilisez la technique montrée en 2.1 pour créer un `Producer` et envoyer l'objet `order` au topic `order-created`. Étapes conseillées :
+
+- Importer `Producer` depuis `confluent_kafka`.
+- Instancier `Producer` avec `bootstrap.servers` pointant sur `localhost:9092`.
+- Après création de l'objet `order` dans `process_payment_event`, envoyer l'événement via `producer.produce(...)`.
+- Pour l'envoi, encodez la valeur en bytes (voir 2.1) et utilisez une callback `delivery_report` pour logger le résultat.
+
+
+
+### 2.3 Le Service Email (Consumer / Producer)
 
 **Objectif:** Modifier `email-service/service.py` pour consommer les messages du topic `order-created` et produire des messages sur le topic `email-sent`.
 
@@ -419,124 +338,10 @@ if __name__ == '__main__':
 
 1. Importer Consumer et Producer Kafka
 2. Créer la configuration du consumer pour le topic `order-created`
-3. Créer une fonction `send_confirmation_email` pour envoyer les emails
-4. Produire un message sur le topic `email-sent` après envoi
-5. Implémenter la boucle de consommation
+3. Produire un message sur le topic `email-sent` après envoi
+4. Implémenter la boucle de consommation
 
-<details>
-<summary>Indices</summary>
-
-```python
-from confluent_kafka import Consumer, Producer
-
-consumer_config = {
-    "bootstrap.servers": "localhost:9092",
-    "group.id": "email-service-group",
-    "auto.offset.reset": "earliest"
-}
-
-producer_config = {
-    "bootstrap.servers": "localhost:9092"
-}
-
-consumer = Consumer(consumer_config)
-producer = Producer(producer_config)
-```
-</details>
-
-<details>
-<summary>Solution complète</summary>
-
-```python
-from flask import Flask, jsonify
-import json
-import threading
-from confluent_kafka import Consumer, Producer
-
-app = Flask(__name__)
-
-emails_sent = []
-
-consumer_config = {
-        "bootstrap.servers": "localhost:9092",
-        "group.id": "email-service-group",
-        "auto.offset.reset": "earliest"
-}
-
-producer_config = {
-    "bootstrap.servers": "localhost:9092"
-}
-
-consumer = Consumer(consumer_config)
-producer = Producer(producer_config)
-
-def delivery_report(err, msg):
-    if err:
-        print(f" Kafka delivery failed: {err}")
-    else:
-        print(f" Message sent to {msg.topic()} [partition {msg.partition()}]")
-
-
-def send_confirmation_email(message):
-        user_id = message.get('user_id')
-        order_id = message.get('order_id')
-        
-        email = {
-                'to': f'user_{user_id}@example.com',
-                'subject': f'Confirmation de commande #{order_id}',
-                'body': f'Votre commande #{order_id} a été confirmée!'
-        }
-        
-        emails_sent.append(email)
-        print(f"Email envoyé: {email['subject']} à {email['to']}")
-
-        # Produire un message dans le topic 'email-sent'
-        email_event = {
-                'user_id': user_id,
-                'order_id': order_id,
-                'email_to': email['to'],
-                'subject': email['subject'],
-                'status': 'sent'
-        }
-        
-        producer.produce(
-                topic="email-sent",
-                value=json.dumps(email_event).encode("utf-8"),
-                callback=delivery_report
-        )
-        producer.flush()
-
-def kafka_consumer_loop():
-        consumer.subscribe(["order-created"])
-        print("Consumer démarré, en écoute sur 'order-created'...")
-        
-        while True:
-                msg = consumer.poll(1.0)
-                
-                if msg is None:
-                        continue
-                if msg.error():
-                        print(f"Erreur: {msg.error()}")
-                        continue
-                        
-                try:
-                        data = json.loads(msg.value().decode('utf-8'))
-                        send_confirmation_email(data)
-                except Exception as e:
-                        print(f"Erreur de traitement: {e}")
-
-@app.route('/emails', methods=['GET'])
-def get_emails():
-        return jsonify({"emails_sent": emails_sent}), 200
-
-if __name__ == '__main__':
-        consumer_thread = threading.Thread(target=kafka_consumer_loop, daemon=True)
-        consumer_thread.start()
-        
-        print("Service d'email démarré sur le port 8002")
-        app.run(host='0.0.0.0', port=8002, debug=False)
-```
-</details>
+Inspirez vous des cas précédents !
 
 **Lancez le service :**
 ```bash
@@ -547,6 +352,8 @@ python email-service/service.py
 1. Le service écoute le topic `order-created`
 2. Il produit des messages sur le topic `email-sent`
 3. Les emails sont stockés dans la liste `emails_sent`
+
+On remarque que les messages qui sont déja produit dans le topic order-created vont etre consommés par le service email
 
 **Testez avec curl :**
 ```bash
@@ -562,166 +369,8 @@ curl http://localhost:8002/emails
 
 1. Importer Consumer Kafka
 2. Créer la configuration du consumer
-3. S'abonner à plusieurs topics
-4. Implémenter des fonctions de tracking pour chaque événement
-5. Mantenir des statistiques en mémoire (total paiements, commandes, emails, revenus, utilisateurs uniques)
-6. Exposer une API `/analytics` pour consulter les stats
+3. S'abonner aux 3 topics payment-successful, order-created, email-sent
 
-<details>
-<summary>Indices</summary>
-
-```python
-from confluent_kafka import Consumer
-
-consumer_config = {
-    "bootstrap.servers": "localhost:9092",
-    "group.id": "analytics-service-group",
-    "auto.offset.reset": "earliest",
-    "enable.auto.commit": True
-}
-
-consumer = Consumer(consumer_config)
-# S'abonner à plusieurs topics
-consumer.subscribe(["payment-successful", "order-created", "email-sent"])
-```
-</details>
-
-<details>
-<summary>Solution complète</summary>
-
-```python
-from flask import Flask, jsonify
-import json
-import threading
-from confluent_kafka import Consumer
-
-app = Flask(__name__)
-
-# Statistiques en mémoire
-analytics = {
-    'total_payments': 0,
-    'total_orders': 0,
-    'total_emails': 0,
-    'total_revenue': 0,
-    'users': set()
-}
-
-# Configuration du consumer
-consumer_config = {
-    "bootstrap.servers": "localhost:9092",
-    "group.id": "analytics-service-group",
-    "auto.offset.reset": "earliest",
-    "enable.auto.commit": True
-}
-
-consumer = Consumer(consumer_config)
-
-def track_payment(message):
-    """
-    Enregistre les statistiques de paiement
-    """
-    user_id = message.get('user_id')
-    cart = message.get('cart', [])
-    
-    analytics['total_payments'] += 1
-    analytics['users'].add(user_id)
-    
-    # Calculer le total du panier (simulation)
-    total = sum(item.get('price', 0) * item.get('quantity', 1) for item in cart)
-    analytics['total_revenue'] += total
-    
-    print(f" Paiement enregistré: {total}€ pour l'utilisateur {user_id}")
-
-def track_order(message):
-    """
-    Enregistre les statistiques de commande
-    """
-    order_id = message.get('order_id')
-    
-    analytics['total_orders'] += 1
-    
-    print(f" Commande enregistrée: #{order_id}")
-
-def track_email(message):
-    """
-    Enregistre les statistiques d'email
-    """
-    order_id = message.get('order_id')
-    email_to = message.get('email_to')
-    
-    analytics['total_emails'] += 1
-    
-    print(f" Email enregistré: {email_to} pour commande #{order_id}")
-
-
-@app.route('/analytics', methods=['GET'])
-def get_analytics():
-    stats = analytics.copy()
-    stats['unique_users'] = len(analytics['users'])
-    stats['users'] = list(analytics['users'])
-    
-    return jsonify(stats), 200
-
-
-def kafka_consumer_loop():
-    """
-    Thread qui consomme les messages de plusieurs topics
-    """
-    # S'abonner à plusieurs topics
-    consumer.subscribe(["payment-successful", "order-created", "email-sent"])
-    print(" Consumer démarré, écoute sur 3 topics:")
-    print("   - payment-successful")
-    print("   - order-created")
-    print("   - email-sent")
-    
-    try:
-        while True:
-            msg = consumer.poll(timeout=1.0)
-            
-            if msg is None:
-                continue
-            
-            if msg.error():
-                print(f" Consumer error: {msg.error()}")
-                continue
-            
-            # Décoder le message
-            try:
-                message_value = json.loads(msg.value().decode('utf-8'))
-                topic = msg.topic()
-                
-                print(f" Message reçu de '{topic}'")
-                
-                # Router vers la bonne fonction selon le topic
-                if topic == "payment-successful":
-                    track_payment(message_value)
-                elif topic == "order-created":
-                    track_order(message_value)
-                elif topic == "email-sent":
-                    track_email(message_value)
-                else:
-                    print(f" Topic inconnu: {topic}")
-                    
-            except json.JSONDecodeError as e:
-                print(f" Erreur de décodage JSON: {e}")
-            except Exception as e:
-                print(f" Erreur lors du traitement: {e}")
-                
-    except KeyboardInterrupt:
-        print(" Arrêt du consumer...")
-    finally:
-        consumer.close()
-
-if __name__ == '__main__':
-    # Démarrer le consumer Kafka dans un thread séparé
-    consumer_thread = threading.Thread(target=kafka_consumer_loop, daemon=True)
-    consumer_thread.start()
-
-    print(" Service d'analytics démarré sur le port 8003")
-    print(" En attente d'événements...")
-    app.run(host='0.0.0.0', port=8003, debug=False)
-```
-</details>
 
 **Lancez le service :**
 ```bash
@@ -897,19 +546,11 @@ Les partitions permettent de paralléliser le traitement des messages. **Chaque 
 ```bash
 # Arrêtez tous vos services (Ctrl+C)
 
-# Supprimer les anciens topics
+# Supprimer les anciens topics (payment-successful et order-created)
 docker exec -it kafka kafka-topics --bootstrap-server localhost:9092 \
-    --delete --topic payment-successful
+    --delete --topic payment-successful 
 
-docker exec -it kafka kafka-topics --bootstrap-server localhost:9092 \
-    --delete --topic order-created
-
-# Recréer avec 3 partitions
-docker exec -it kafka kafka-topics --bootstrap-server localhost:9092 \
-    --create --topic payment-successful --partitions 3 --replication-factor 1
-
-docker exec -it kafka kafka-topics --bootstrap-server localhost:9092 \
-    --create --topic order-created --partitions 3 --replication-factor 1
+# réecrer avec 3 partitions (s inspirer )
 ```
 
 ### 4.3 Observer la distribution des messages (côté Producer)
@@ -952,7 +593,7 @@ curl -X POST http://localhost:8000/payment \
 ### 4.4 Observer l'assignation des partitions (côté Consumer)
 
 Modifiez votre **order-service** pour afficher quelle partition est lue et ajouter un identifiant d'instance :
-
+ceci sert à identifier les consumers par la suite
 ```python
 import os
 
@@ -985,7 +626,7 @@ def kafka_consumer_loop():
 if __name__ == '__main__':
     consumer_thread = threading.Thread(target=kafka_consumer_loop, daemon=True)
     consumer_thread.start()
-    
+#    modification ici
     print(f" Service de commande Instance #{INSTANCE_ID} démarré sur le port {PORT}")
     app.run(host='0.0.0.0', port=PORT, debug=False)
 ```
@@ -1040,19 +681,7 @@ Terminal 3 (Instance #3) :
 
  **Chaque instance ne traite QUE les messages de SA partition !**
 
-### 4.7 Vérifier dans Kafka UI
-
-1. Allez sur Kafka UI : http://localhost:8080
-2. Cliquez sur **"Consumers"** → **"order-service-group"**
-3. Observez l'assignation :
-
-| Consumer | Partition assignée |
-|----------|-------------------|
-| Instance 1 | Partition 0 |
-| Instance 2 | Partition 1 |
-| Instance 3 | Partition 2 |
-
-### 4.8 Relancer la simulation Black Friday
+### 4.7 Relancer la simulation Black Friday
 
 Avec vos 3 consumers actifs, relancez le flood :
 
@@ -1134,6 +763,7 @@ Observez les logs de vos consumers. Que se passe-t-il ?
 ### 5.3 Implémenter une gestion robuste
 
 **Objectif:** Modifier le consumer pour :
+0. Créer un topic 'dlq-payment'
 1. Attraper les erreurs de parsing
 2. Logger les erreurs
 3. Envoyer les messages en erreur dans une Dead Letter Queue (DLQ)
@@ -1243,160 +873,8 @@ docker exec -it kafka kafka-console-consumer \
 > - Exposer un dashboard via API REST
 >
 
-### 6.1 Objectif
 
-Modifier `analytics-service/service.py` pour afficher des statistiques en temps réel.
-
-### 6.2 Implémenter le streaming analytics
-
-**Objectif:** Le service analytics doit :
-1. Consommer les événements `payment-successful` et `order-created`
-2. Maintenir des statistiques en mémoire
-3. Exposer ces stats via une API REST
-
-<details>
-<summary>Solution</summary>
-
-```python
-from flask import Flask, jsonify
-import json
-import threading
-import time
-from confluent_kafka import Consumer
-
-app = Flask(__name__)
-
-analytics = {
-        'total_payments': 0,
-        'total_orders': 0,
-        'total_revenue': 0,
-        'users': set(),
-        'last_updated': None,
-        'payments_per_minute': 0,
-        'orders_per_minute': 0
-}
-
-analytics_lock = threading.Lock()
-payment_timestamps = []
-order_timestamps = []
-
-consumer_config = {
-        "bootstrap.servers": "localhost:9092",
-        "group.id": "analytics-service-group",
-        "auto.offset.reset": "earliest"
-}
-
-consumer = Consumer(consumer_config)
-
-def calculate_rate(timestamps, window_seconds=60):
-        """Calcule le taux par minute"""
-        now = time.time()
-        # Garder seulement les timestamps des dernières 60 secondes
-        recent = [t for t in timestamps if now - t < window_seconds]
-        return len(recent)
-
-def track_payment(message):
-        with analytics_lock:
-                user_id = message.get('user_id')
-                cart = message.get('cart', [])
-                
-                analytics['total_payments'] += 1
-                if user_id:
-                        analytics['users'].add(str(user_id))
-                
-                total = sum(item.get('price', 0) * item.get('quantity', 1) for item in cart if isinstance(item, dict))
-                analytics['total_revenue'] += total
-                analytics['last_updated'] = time.strftime('%Y-%m-%d %H:%M:%S')
-                
-                payment_timestamps.append(time.time())
-                analytics['payments_per_minute'] = calculate_rate(payment_timestamps)
-                
-        print(f"[LIVE] Paiement: +{total}EUR | Total: {analytics['total_revenue']}EUR | {analytics['payments_per_minute']} paiements/min")
-
-def track_order(message):
-        with analytics_lock:
-                analytics['total_orders'] += 1
-                analytics['last_updated'] = time.strftime('%Y-%m-%d %H:%M:%S')
-                
-                order_timestamps.append(time.time())
-                analytics['orders_per_minute'] = calculate_rate(order_timestamps)
-                
-        print(f"[LIVE] Commande #{message.get('order_id')} | Total: {analytics['total_orders']} | {analytics['orders_per_minute']} commandes/min")
-
-def kafka_consumer_loop():
-        consumer.subscribe(["payment-successful", "order-created"])
-        print("Analytics en écoute sur 'payment-successful' et 'order-created'...")
-        
-        while True:
-                msg = consumer.poll(1.0)
-                
-                if msg is None:
-                        continue
-                if msg.error():
-                        print(f"Erreur: {msg.error()}")
-                        continue
-                        
-                try:
-                        data = json.loads(msg.value().decode('utf-8'))
-                        
-                        if msg.topic() == "payment-successful":
-                                track_payment(data)
-                        elif msg.topic() == "order-created":
-                                track_order(data)
-                                
-                except Exception as e:
-                        print(f"Erreur analytics: {e}")
-
-@app.route('/analytics', methods=['GET'])
-def get_analytics():
-        with analytics_lock:
-                stats = analytics.copy()
-                stats['unique_users'] = len(analytics['users'])
-                stats['users'] = list(analytics['users'])[:10]  # Limiter pour l'affichage
-        
-        return jsonify(stats), 200
-
-@app.route('/analytics/live', methods=['GET'])
-def get_live_stats():
-        """Endpoint pour stats en temps réel"""
-        with analytics_lock:
-                return jsonify({
-                        'payments_per_minute': analytics['payments_per_minute'],
-                        'orders_per_minute': analytics['orders_per_minute'],
-                        'total_revenue': analytics['total_revenue'],
-                        'last_updated': analytics['last_updated']
-                }), 200
-
-if __name__ == '__main__':
-        consumer_thread = threading.Thread(target=kafka_consumer_loop, daemon=True)
-        consumer_thread.start()
-        
-        print("Service Analytics démarré sur le port 8003")
-        app.run(host='0.0.0.0', port=8003, debug=False)
-```
-</details>
-
-### 6.3 Tester le streaming
-
-1. Lancez le service analytics :
-```bash
-python analytics-service/service.py
-```
-
-2. Lancez la simulation Black Friday dans un autre terminal :
-```bash
-python scripts/black_friday_simulation.py -n 100 -c 20
-```
-
-3. Observez les statistiques en temps réel :
-```bash
-# Dans un autre terminal
-watch -n 1 'curl -s http://localhost:8003/analytics/live | python -m json.tool'
-```
-
----
-
-## Partie 7 : Défis Bonus
+## Partie 6 : Défis Bonus
 
 > ###  Checkpoint Final
 > **Félicitations !**  Vous avez construit un système e-commerce capable de survivre au Black Friday !
