@@ -99,9 +99,9 @@ def run_simulation(num_users, concurrent_users, delay_between_batches=0.1):
         delay_between_batches: Délai entre chaque batch de requêtes
     """
     print("=" * 60)
-    print("🛒 SIMULATION BLACK FRIDAY 🛒")
+    print("SIMULATION BLACK FRIDAY")
     print("=" * 60)
-    print(f"📊 Configuration:")
+    print(f"Configuration:")
     print(f"   - Nombre total de commandes: {num_users}")
     print(f"   - Requêtes simultanées: {concurrent_users}")
     print(f"   - URL du service de paiement: {PAYMENT_SERVICE_URL}")
@@ -118,7 +118,7 @@ def run_simulation(num_users, concurrent_users, delay_between_batches=0.1):
             
             # Afficher la progression
             if user_id % 10 == 0:
-                print(f"📤 {user_id}/{num_users} requêtes envoyées...")
+                print(f"{user_id}/{num_users} requêtes envoyées...")
             
             # Petit délai pour éviter de tout envoyer d'un coup
             if user_id % concurrent_users == 0:
@@ -133,20 +133,20 @@ def run_simulation(num_users, concurrent_users, delay_between_batches=0.1):
     # Afficher les résultats
     print()
     print("=" * 60)
-    print("📊 RÉSULTATS DE LA SIMULATION")
+    print("RÉSULTATS DE LA SIMULATION")
     print("=" * 60)
-    print(f"✅ Succès: {stats['success']}")
-    print(f"❌ Échecs: {stats['failed']}")
-    print(f"⏱️  Temps total: {total_time:.2f}s")
+    print(f"Succès: {stats['success']}")
+    print(f"Échecs: {stats['failed']}")
+    print(f"Temps total: {total_time:.2f}s")
     
     if stats['success'] > 0:
         avg_time = stats['total_time'] / stats['success']
-        print(f"⏱️  Temps moyen par requête: {avg_time:.2f}s")
-        print(f"📈 Débit: {stats['success'] / total_time:.2f} requêtes/seconde")
+        print(f"Temps moyen par requête: {avg_time:.2f}s")
+        print(f"Débit: {stats['success'] / total_time:.2f} requêtes/seconde")
     
     if stats['failed'] > 0:
         print()
-        print("⚠️  Dernières erreurs:")
+        print("Dernières erreurs:")
         for error in stats['errors'][-5:]:
             print(f"   - {error}")
     
@@ -157,18 +157,18 @@ def run_simulation(num_users, concurrent_users, delay_between_batches=0.1):
     
     if success_rate < 80:
         print()
-        print("🔥 ALERTE: Le système n'a pas tenu la charge!")
-        print("💡 Il est temps d'améliorer l'infrastructure avec Kafka:")
+        print("ALERTE: Le système n'a pas tenu la charge!")
+        print("Il est temps d'améliorer l'infrastructure avec Kafka:")
         print("   - Augmenter le nombre de partitions")
         print("   - Ajouter des consumer groups")
         print("   - Configurer la réplication")
     elif success_rate < 95:
         print()
-        print("⚠️  ATTENTION: Des pertes ont été détectées!")
-        print("💡 Considérez l'optimisation de votre configuration Kafka.")
+        print("ATTENTION: Des pertes ont été détectées!")
+        print("Considérez l'optimisation de votre configuration Kafka.")
     else:
         print()
-        print("🎉 SUCCÈS: Le système a bien géré la charge!")
+        print("SUCCÈS: Le système a bien géré la charge!")
 
 def main():
     parser = argparse.ArgumentParser(description="Simulation Black Friday")

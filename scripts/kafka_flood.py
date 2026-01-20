@@ -63,9 +63,9 @@ def run_simulation(num_messages, batch_size=100):
         batch_size: Nombre de messages par batch avant flush
     """
     print("=" * 70)
-    print("🛒 SIMULATION BLACK FRIDAY - INJECTION DIRECTE KAFKA 🛒")
+    print("SIMULATION BLACK FRIDAY - INJECTION DIRECTE KAFKA")
     print("=" * 70)
-    print(f"📊 Configuration:")
+    print(f"Configuration:")
     print(f"   - Nombre de messages à envoyer: {num_messages}")
     print(f"   - Topic cible: payment-successful")
     print(f"   - Kafka: {KAFKA_BOOTSTRAP_SERVERS}")
@@ -84,7 +84,7 @@ def run_simulation(num_messages, batch_size=100):
     
     start_time = time.time()
     
-    print("🚀 Début de l'injection des messages...")
+    print("Début de l'injection des messages...")
     print()
     
     for i in range(1, num_messages + 1):
@@ -105,7 +105,7 @@ def run_simulation(num_messages, batch_size=100):
         
         # Afficher la progression
         if i % 500 == 0:
-            print(f"📤 {i}/{num_messages} messages envoyés...")
+            print(f"{i}/{num_messages} messages envoyés...")
         
         # Flush périodique pour éviter le buffer overflow
         if i % batch_size == 0:
@@ -113,7 +113,7 @@ def run_simulation(num_messages, batch_size=100):
     
     # Flush final
     print()
-    print("⏳ Flush final en cours...")
+    print("Flush final en cours...")
     producer.flush()
     
     total_time = time.time() - start_time
@@ -121,24 +121,22 @@ def run_simulation(num_messages, batch_size=100):
     # Afficher les résultats
     print()
     print("=" * 70)
-    print("📊 RÉSULTATS DE L'INJECTION")
+    print("RÉSULTATS DE L'INJECTION")
     print("=" * 70)
-    print(f"✅ Messages envoyés: {stats['sent']}")
-    print(f"❌ Échecs: {stats['failed']}")
-    print(f"⏱️  Temps total: {total_time:.2f}s")
-    print(f"📈 Débit: {stats['sent'] / total_time:.0f} messages/seconde")
+    print(f"Messages envoyés: {stats['sent']}")
+    print(f"Échecs: {stats['failed']}")
+    print(f"Temps total: {total_time:.2f}s")
+    print(f"Débit: {stats['sent'] / total_time:.0f} messages/seconde")
     print()
     print("=" * 70)
-    print("📋 PROCHAINES ÉTAPES")
+    print("PROCHAINES ÉTAPES")
     print("=" * 70)
     print()
-    print("1. Vérifiez le LAG des consumers avec:")
-    print("   python scripts/check_consumer_lag.py")
     print()
-    print("2. Ou dans Kafka UI: http://localhost:8080")
+    print("Dans Kafka UI: http://localhost:8080")
     print("   → Topics → payment-successful → Consumers")
     print()
-    print("💡 Si le lag est élevé, votre consumer ne suit pas la charge!")
+    print("Si le lag est élevé, votre consumer ne suit pas la charge!")
     print("   → Solution: Augmenter les partitions + ajouter des consumers")
     print("=" * 70)
 

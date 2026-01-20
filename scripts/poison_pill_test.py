@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-☠️ Test des messages empoisonnés (Poison Pills)
+Test des messages empoisonnés (Poison Pills)
 Ce script envoie des messages malformés pour tester la robustesse du système.
 """
 
@@ -16,9 +16,9 @@ producer = Producer(producer_config)
 
 def delivery_report(err, msg):
     if err:
-        print(f"❌ Échec: {err}")
+        print(f"Échec: {err}")
     else:
-        print(f"✅ Message envoyé au topic {msg.topic()}")
+        print(f"Message envoyé au topic {msg.topic()}")
 
 # Messages empoisonnés à tester
 POISON_PILLS = [
@@ -84,7 +84,7 @@ POISON_PILLS = [
 def send_poison_pills():
     """Envoie tous les messages empoisonnés"""
     print("=" * 60)
-    print("☠️  TEST DES MESSAGES EMPOISONNÉS ☠️")
+    print("TEST DES MESSAGES EMPOISONNÉS")
     print("=" * 60)
     print()
     print("Ce script va envoyer des messages malformés pour tester")
@@ -95,7 +95,7 @@ def send_poison_pills():
     print()
     
     for i, poison in enumerate(POISON_PILLS, 1):
-        print(f"📤 [{i}/{len(POISON_PILLS)}] Envoi: {poison['name']}")
+        print(f"[{i}/{len(POISON_PILLS)}] Envoi: {poison['name']}")
         
         try:
             producer.produce(
@@ -105,7 +105,7 @@ def send_poison_pills():
             )
             producer.poll(0)
         except Exception as e:
-            print(f"   ❌ Erreur lors de l'envoi: {e}")
+            print(f"   Erreur lors de l'envoi: {e}")
         
         time.sleep(0.5)  # Petit délai pour voir les effets
     
@@ -114,9 +114,9 @@ def send_poison_pills():
     
     print()
     print("=" * 60)
-    print("✅ Tous les messages empoisonnés ont été envoyés!")
+    print("Tous les messages empoisonnés ont été envoyés!")
     print()
-    print("🔍 Vérifiez maintenant:")
+    print("Vérifiez maintenant:")
     print("   1. Les logs de vos consumers")
     print("   2. Si le consumer a crashé ou continue de fonctionner")
     print("   3. Si les messages sont dans une Dead Letter Queue")
@@ -126,7 +126,7 @@ def send_poison_pills():
 def send_single_poison(poison_type):
     """Envoie un seul type de message empoisonné"""
     if poison_type < 1 or poison_type > len(POISON_PILLS):
-        print(f"❌ Type invalide. Choisissez entre 1 et {len(POISON_PILLS)}")
+        print(f"Type invalide. Choisissez entre 1 et {len(POISON_PILLS)}")
         return
     
     poison = POISON_PILLS[poison_type - 1]

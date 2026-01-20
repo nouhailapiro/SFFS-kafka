@@ -38,7 +38,7 @@ def track_payment(message):
     total = sum(item.get('price', 0) * item.get('quantity', 1) for item in cart)
     analytics['total_revenue'] += total
     
-    print(f"📊 Paiement enregistré: {total}€ pour l'utilisateur {user_id}")
+    print(f"Paiement enregistré: {total}€ pour l'utilisateur {user_id}")
 
 def track_order(message):
     """
@@ -48,7 +48,7 @@ def track_order(message):
     
     analytics['total_orders'] += 1
     
-    print(f"📊 Commande enregistrée: #{order_id}")
+    print(f"Commande enregistrée: #{order_id}")
 
 def track_email(message):
     """
@@ -59,7 +59,7 @@ def track_email(message):
     
     analytics['total_emails'] += 1
     
-    print(f"📊 Email enregistré: {email_to} pour commande #{order_id}")
+    print(f"Email enregistré: {email_to} pour commande #{order_id}")
 
 
 @app.route('/analytics', methods=['GET'])
@@ -81,7 +81,7 @@ def kafka_consumer_loop():
     """
     # S'abonner à plusieurs topics
     consumer.subscribe(["payment-successful", "order-created", "email-sent"])
-    print("🎧 Consumer démarré, écoute sur 3 topics:")
+    print("Consumer démarré, écoute sur 3 topics:")
     print("   - payment-successful")
     print("   - order-created")
     print("   - email-sent")
@@ -94,7 +94,7 @@ def kafka_consumer_loop():
                 continue
             
             if msg.error():
-                print(f"❌ Consumer error: {msg.error()}")
+                print(f"Consumer error: {msg.error()}")
                 continue
             
             # Décoder le message
@@ -102,7 +102,7 @@ def kafka_consumer_loop():
                 message_value = json.loads(msg.value().decode('utf-8'))
                 topic = msg.topic()
                 
-                print(f"📨 Message reçu de '{topic}'")
+                print(f"Message reçu de '{topic}'")
                 
                 # Router vers la bonne fonction selon le topic
                 if topic == "payment-successful":
@@ -112,12 +112,12 @@ def kafka_consumer_loop():
                 elif topic == "email-sent":
                     track_email(message_value)
                 else:
-                    print(f"⚠️ Topic inconnu: {topic}")
+                    print(f"Topic inconnu: {topic}")
                     
             except json.JSONDecodeError as e:
-                print(f"❌ Erreur de décodage JSON: {e}")
+                print(f"Erreur de décodage JSON: {e}")
             except Exception as e:
-                print(f"❌ Erreur lors du traitement: {e}")
+                print(f"Erreur lors du traitement: {e}")
                 
     except KeyboardInterrupt:
         print("🛑 Arrêt du consumer...")
@@ -129,6 +129,6 @@ if __name__ == '__main__':
     consumer_thread = threading.Thread(target=kafka_consumer_loop, daemon=True)
     consumer_thread.start()
 
-    print("🚀 Service d'analytics démarré sur le port 8003")
-    print("⏳ En attente d'événements...")
+    print("Service d'analytics démarré sur le port 8003")
+    print("En attente d'événements...")
     app.run(host='0.0.0.0', port=8003, debug=False)

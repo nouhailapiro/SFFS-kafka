@@ -21,9 +21,9 @@ emails_sent = []
 def delivery_report(err, msg):
     """Callback pour confirmer l'envoi du message Kafka"""
     if err:
-        print(f"❌ Kafka delivery failed: {err}")
+        print(f"Kafka delivery failed: {err}")
     else:
-        print(f"✅ Message sent to {msg.topic()} [partition {msg.partition()}]")
+        print(f"Message sent to {msg.topic()} [partition {msg.partition()}]")
 
 def send_confirmation_email(message):
     """
@@ -91,6 +91,6 @@ if __name__ == '__main__':
     # consumer_thread = threading.Thread(target=kafka_consumer_loop, daemon=True)
     # consumer_thread.start()
 
-    print("🚀 Service d'email démarré sur le port 8002")
-    print("⏳ En attente d'événements de commande...")
+    print("Service d'email démarré sur le port 8002")
+    print("En attente d'événements de commande...")
     app.run(host='0.0.0.0', port=8002, debug=False)

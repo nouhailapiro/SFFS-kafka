@@ -24,7 +24,7 @@ def process_payment():
     user_id = data.get('user_id')  # Simulé pour l'exemple
     
     # Simulation du traitement du paiement
-    print(f"💳 Traitement du paiement pour l'utilisateur {user_id}")
+    print(f"Traitement du paiement pour l'utilisateur {user_id}")
     print(f"Panier: {cart}")
     
     # TODO: Intégration Kafka ici
@@ -58,5 +58,5 @@ def handle_error(error):
     return jsonify({"error": str(error)}), 500
 
 if __name__ == '__main__':
-    print("🚀 Service de paiement démarré sur le port 8000")
+    print("Service de paiement démarré sur le port 8000")
     app.run(host='0.0.0.0', port=8000, debug=False)

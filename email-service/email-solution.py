@@ -22,9 +22,9 @@ producer = Producer(producer_config)
 
 def delivery_report(err, msg):
     if err:
-        print(f"❌ Kafka delivery failed: {err}")
+        print(f"Kafka delivery failed: {err}")
     else:
-        print(f"✅ Message sent to {msg.topic()} [partition {msg.partition()}]")
+        print(f"Message sent to {msg.topic()} [partition {msg.partition()}]")
 
 
 def send_confirmation_email(message):

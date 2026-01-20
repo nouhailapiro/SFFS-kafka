@@ -42,7 +42,7 @@ def process_payment_event(message):
     }
     orders.append(order)
 
-    print(f"📦 [Instance #{INSTANCE_ID}] Nouvelle commande créée: {order}")
+    print(f"[Instance #{INSTANCE_ID}] Nouvelle commande créée: {order}")
     
     # TODO Partie 2.2.5: Produire un message au topic 'order-created'
     # Le message doit contenir les données de la commande (order)
@@ -94,6 +94,6 @@ if __name__ == '__main__':
     # consumer_thread = threading.Thread(target=kafka_consumer_loop, daemon=True)
     # consumer_thread.start()
 
-    print(f"🚀 Service de commande Instance #{INSTANCE_ID} démarré sur le port {PORT}")
-    print("⏳ En attente d'événements de paiement...")
+    print(f"Service de commande Instance #{INSTANCE_ID} démarré sur le port {PORT}")
+    print("En attente d'événements de paiement...")
     app.run(host='0.0.0.0', port=PORT, debug=False)
