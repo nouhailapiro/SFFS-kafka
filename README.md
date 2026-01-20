@@ -34,6 +34,15 @@ Actuellement, votre architecture est composée de 4 microservices :
 
 ## Partie 0 : Installation et Setup
 
+> ###  Checkpoint 0
+> **Où en sommes-nous ?** C'est le point de départ ! Vous allez préparer votre environnement de travail.
+> 
+> **Ce que vous allez faire :**
+> - Cloner le projet et installer les dépendances
+> - Lancer Kafka avec Docker
+> - Découvrir Kafka UI
+>
+
 ### 0.1 Cloner le projet
 
 ```bash
@@ -78,6 +87,15 @@ C'est votre tableau de bord pour visualiser Kafka !
 ---
 
 ## Partie 1 : Découverte de Kafka CLI
+
+> ###  Checkpoint 1
+> **Où en sommes-nous ?**  L'environnement est prêt, Kafka tourne !
+> 
+> **Ce que vous allez faire :**
+> - Créer vos premiers topics Kafka via CLI
+> - Comprendre les concepts de topics, partitions et replication-factor
+> - Tester la communication Producer → Consumer avec la console
+>
 
 Avant de coder, familiarisons-nous avec les commandes Kafka.
 
@@ -147,6 +165,23 @@ Tapez un message et appuyez sur Entrée. Vous devriez le voir apparaître dans l
 
 ## Partie 2 : Intégration Kafka dans les Services
 
+> ###  Checkpoint 2
+> **Où en sommes-nous ?**  Vous maîtrisez les commandes Kafka CLI et avez créé vos topics !
+> 
+> **Ce que vous allez faire :**
+> - Transformer le Payment Service en **Producer** Kafka
+> - Transformer l'Order Service en **Consumer** Kafka
+> - Créer une chaîne complète : Payment → Order → Email → Analytics
+> - Tester l'intégration de bout en bout
+>
+> **Architecture cible :**
+> ```
+> Payment ──► [payment-successful] ──► Order ──► [order-created] ──► Email
+>                    │                                  │
+>                    └──────────► Analytics ◄──────────┘
+> ```
+>
+
 ### 2.1 Le Service de Paiement (Producer)
 
 **Objectif:** Modifier `payment-service/service.py` pour envoyer un message Kafka lorsqu'un paiement est effectué.
@@ -199,9 +234,9 @@ producer = Producer(producer_config)
 
 def delivery_report(err, msg):
     if err:
-        print(f"❌ Kafka delivery failed: {err}")
+        print(f" Kafka delivery failed: {err}")
     else:
-        print(f"✅ Message sent to topic {msg.topic()} partition[{msg.partition()}]")
+        print(f" Message sent to topic {msg.topic()} partition[{msg.partition()}]")
 
 @app.route('/payment', methods=['POST'])
 def process_payment():
@@ -209,7 +244,7 @@ def process_payment():
     cart = data.get('cart')
     user_id = data.get('user_id')
     
-    print(f"💳 Traitement du paiement pour l'utilisateur {user_id}")
+    print(f" Traitement du paiement pour l'utilisateur {user_id}")
     print(f"Panier: {cart}")
     
     # Créer l'événement à envoyer
@@ -241,7 +276,7 @@ def handle_error(error):
     return jsonify({"error": str(error)}), 500
 
 if __name__ == '__main__':
-    print("🚀 Service de paiement démarré sur le port 8000")
+    print(" Service de paiement démarré sur le port 8000")
     app.run(host='0.0.0.0', port=8000, debug=False)
 ```
 </details>
@@ -437,9 +472,9 @@ producer = Producer(producer_config)
 
 def delivery_report(err, msg):
     if err:
-        print(f"❌ Kafka delivery failed: {err}")
+        print(f" Kafka delivery failed: {err}")
     else:
-        print(f"✅ Message sent to {msg.topic()} [partition {msg.partition()}]")
+        print(f" Message sent to {msg.topic()} [partition {msg.partition()}]")
 
 
 def send_confirmation_email(message):
@@ -595,7 +630,7 @@ def track_payment(message):
     total = sum(item.get('price', 0) * item.get('quantity', 1) for item in cart)
     analytics['total_revenue'] += total
     
-    print(f"📊 Paiement enregistré: {total}€ pour l'utilisateur {user_id}")
+    print(f" Paiement enregistré: {total}€ pour l'utilisateur {user_id}")
 
 def track_order(message):
     """
@@ -605,7 +640,7 @@ def track_order(message):
     
     analytics['total_orders'] += 1
     
-    print(f"📊 Commande enregistrée: #{order_id}")
+    print(f" Commande enregistrée: #{order_id}")
 
 def track_email(message):
     """
@@ -616,7 +651,7 @@ def track_email(message):
     
     analytics['total_emails'] += 1
     
-    print(f"📊 Email enregistré: {email_to} pour commande #{order_id}")
+    print(f" Email enregistré: {email_to} pour commande #{order_id}")
 
 
 @app.route('/analytics', methods=['GET'])
@@ -634,7 +669,7 @@ def kafka_consumer_loop():
     """
     # S'abonner à plusieurs topics
     consumer.subscribe(["payment-successful", "order-created", "email-sent"])
-    print("🎧 Consumer démarré, écoute sur 3 topics:")
+    print(" Consumer démarré, écoute sur 3 topics:")
     print("   - payment-successful")
     print("   - order-created")
     print("   - email-sent")
@@ -647,7 +682,7 @@ def kafka_consumer_loop():
                 continue
             
             if msg.error():
-                print(f"❌ Consumer error: {msg.error()}")
+                print(f" Consumer error: {msg.error()}")
                 continue
             
             # Décoder le message
@@ -655,7 +690,7 @@ def kafka_consumer_loop():
                 message_value = json.loads(msg.value().decode('utf-8'))
                 topic = msg.topic()
                 
-                print(f"📨 Message reçu de '{topic}'")
+                print(f" Message reçu de '{topic}'")
                 
                 # Router vers la bonne fonction selon le topic
                 if topic == "payment-successful":
@@ -665,15 +700,15 @@ def kafka_consumer_loop():
                 elif topic == "email-sent":
                     track_email(message_value)
                 else:
-                    print(f"⚠️ Topic inconnu: {topic}")
+                    print(f" Topic inconnu: {topic}")
                     
             except json.JSONDecodeError as e:
-                print(f"❌ Erreur de décodage JSON: {e}")
+                print(f" Erreur de décodage JSON: {e}")
             except Exception as e:
-                print(f"❌ Erreur lors du traitement: {e}")
+                print(f" Erreur lors du traitement: {e}")
                 
     except KeyboardInterrupt:
-        print("🛑 Arrêt du consumer...")
+        print(" Arrêt du consumer...")
     finally:
         consumer.close()
 
@@ -682,8 +717,8 @@ if __name__ == '__main__':
     consumer_thread = threading.Thread(target=kafka_consumer_loop, daemon=True)
     consumer_thread.start()
 
-    print("🚀 Service d'analytics démarré sur le port 8003")
-    print("⏳ En attente d'événements...")
+    print(" Service d'analytics démarré sur le port 8003")
+    print(" En attente d'événements...")
     app.run(host='0.0.0.0', port=8003, debug=False)
 ```
 </details>
@@ -729,11 +764,25 @@ curl -X POST http://localhost:8000/payment \
 
 ## Partie 3 : Simulation Black Friday - Observer le problème
 
+> ###  Checkpoint 3
+> **Où en sommes-nous ?**  Tous vos services communiquent via Kafka ! 
+> 
+> **Le problème :** Votre système fonctionne... mais tiendra-t-il le Black Friday ?
+>
+> **Ce que vous allez faire :**
+> - Comprendre le concept de **LAG** (retard de traitement)
+> - Simuler un pic de charge avec 1000+ messages
+> - Observer votre unique consumer se noyer sous la charge
+> - Identifier le goulet d'étranglement
+>
+> **Spoiler :** Ça va mal se passer !  Et c'est le but.
+>
+
 Le but de cette partie est de **voir le problème** : avec une seule partition et un seul consumer, le système ne peut pas absorber un pic de charge.
 
-### 3.1 Comprendre le LAG
+### 3.1 Comprendre le lag
 
-Le **LAG** est la différence entre :
+Le **lag** est la différence entre :
 - Le nombre de messages produits dans Kafka
 - Le nombre de messages consommés par votre consumer
 
@@ -741,10 +790,10 @@ Le **LAG** est la différence entre :
 Messages produits:    [============================] 5000
 Messages consommés:   [========]                     1200
                       ↑
-                      LAG = 3800 messages en retard!
+                      lag = 3800 messages en retard!
 ```
 
-Un LAG élevé signifie que votre consumer n'arrive pas à suivre le rythme de production.
+Un lag élevé signifie que votre consumer n'arrive pas à suivre le rythme de production.
 
 ### 3.2 Ajouter un délai de traitement au consumer
 
@@ -768,6 +817,7 @@ def process_payment_event(message):
     }
     # ... reste du code
 ```
+N'oubliez pas d'importer le module time en début de fichier.
 
 ### 3.3 Lancer la simulation Black Friday
 
@@ -792,31 +842,39 @@ python scripts/check_consumer_lag.py --monitor
 
 Vous devriez voir quelque chose comme :
 ```
-⏰ 14:32:15
-   order-service-group → payment-successful: 🔥 Lag = 847
-⏰ 14:32:17
-   order-service-group → payment-successful: 🔥 Lag = 823
-⏰ 14:32:19
-   order-service-group → payment-successful: 🔥 Lag = 801
+ 14:32:15
+   order-service-group → payment-successful:  Lag = 847
+ 14:32:17
+   order-service-group → payment-successful:  Lag = 823
+ 14:32:19
+   order-service-group → payment-successful:  Lag = 801
 ```
 
 **Le consumer traite ~10 messages/seconde, mais on en a injecté 1000 en 2 secondes !**
 
-### 3.5 Mode intense 🔥
+Pour vous amusez , vous pouvez aussi tester avec le flag --intense ou --extreme.  
 
-Essayez avec plus de messages :
-
-```bash
-python scripts/kafka_flood.py --intense  # 5000 messages
-```
-
-Le LAG explose ! Votre unique consumer met plusieurs minutes à rattraper son retard.
+Le lag explose ! Votre unique consumer met plusieurs minutes à rattraper son retard.
 
 **Problème identifié:** Avec une seule partition et un seul consumer, le système ne tient pas la charge !
 
 ---
 
 ## Partie 4 : Optimisation avec les Partitions et Consumer Groups
+
+> ###  Checkpoint 4
+> **Où en sommes-nous ?**  Vous avez identifié le problème : 1 partition + 1 consumer = BOTTLENECK !
+> 
+> **La solution :** Paralléliser le traitement avec les **partitions** et **consumer groups** !
+>
+> **Ce que vous allez faire :**
+> - Recréer les topics avec **3 partitions**
+> - Lancer **3 instances** de votre consumer (consumer group)
+> - Observer Kafka distribuer automatiquement les partitions
+> - Constater que le lag descend 3x plus vite !
+>
+> **Objectif :** Passer de 10 msg/s à 30 msg/s de traitement
+>
 
 ### 4.1 Comprendre les partitions
 
@@ -839,7 +897,7 @@ Les partitions permettent de paralléliser le traitement des messages. **Chaque 
 
 **Règle importante:** Nombre de consumers ≤ Nombre de partitions
 
-### 4.2 Arrêter les services et recréer les topics
+### 4.2 Arrêter les services et recréer les topics avec 3 partitions
 
 ```bash
 # Arrêtez tous vos services (Ctrl+C)
@@ -859,47 +917,175 @@ docker exec -it kafka kafka-topics --bootstrap-server localhost:9092 \
     --create --topic order-created --partitions 3 --replication-factor 1
 ```
 
-### 4.3 Lancer 3 instances du consumer
+### 4.3 Observer la distribution des messages (côté Producer)
 
-Ouvrez **3 terminaux** et lancez une instance du service dans chacun :
+Modifiez la fonction `delivery_report` dans votre **payment-service** pour afficher la partition :
 
-**Terminal 1:**
-```bash
-python order-service/service.py
+```python
+def delivery_report(err, msg):
+    if err:
+        print(f" Kafka delivery failed: {err}")
+    else:
+        print(f" Message envoyé → Topic: {msg.topic()} | Partition: {msg.partition()} | Offset: {msg.offset()}")
 ```
 
-**Terminal 2:**
+Relancez le service et envoyez **5-10 paiements** avec des `user_id` différents :
+
 ```bash
-PORT=8011 python order-service/service.py
+curl -X POST http://localhost:8000/payment \
+    -H "Content-Type: application/json" \
+    -d '{"user_id": 1, "cart": [{"name": "iPhone", "price": 999, "quantity": 1}]}'
+
+curl -X POST http://localhost:8000/payment \
+    -H "Content-Type: application/json" \
+    -d '{"user_id": 2, "cart": [{"name": "MacBook", "price": 1999, "quantity": 1}]}'
+
+# ... continuez avec user_id 3, 4, 5...
 ```
 
-**Terminal 3:**
-```bash
-PORT=8012 python order-service/service.py
+**Observez les logs :**
+```
+ Message envoyé → Topic: payment-successful | Partition: 1 | Offset: 0
+ Message envoyé → Topic: payment-successful | Partition: 0 | Offset: 0
+ Message envoyé → Topic: payment-successful | Partition: 2 | Offset: 0
+ Message envoyé → Topic: payment-successful | Partition: 1 | Offset: 1
+...
 ```
 
-> 💡 Les 3 instances partagent le même `group.id`, donc Kafka va automatiquement distribuer les partitions entre elles !
+ Les messages sont répartis entre les 3 partitions (round-robin sans clé).
 
-### 4.4 Vérifier la distribution dans Kafka UI
+### 4.4 Observer l'assignation des partitions (côté Consumer)
+
+Modifiez votre **order-service** pour afficher quelle partition est lue et ajouter un identifiant d'instance :
+
+```python
+import os
+
+# Identifiant unique pour cette instance (via variable d'environnement)
+INSTANCE_ID = os.environ.get('INSTANCE_ID', '1')
+PORT = int(os.environ.get('PORT', 8001))
+
+def kafka_consumer_loop():
+    consumer.subscribe(["payment-successful"])
+    print(f" Consumer Instance #{INSTANCE_ID} démarré, en écoute sur 'payment-successful'...")
+    
+    while True:
+        msg = consumer.poll(1.0)
+        
+        if msg is None:
+            continue
+        if msg.error():
+            print(f" Erreur: {msg.error()}")
+            continue
+            
+        try:
+            data = json.loads(msg.value().decode('utf-8'))
+            #  AFFICHER L'INSTANCE ET LA PARTITION
+            print(f" [Instance #{INSTANCE_ID}] [Partition {msg.partition()}] [Offset {msg.offset()}] User {data.get('user_id')}")
+            process_payment_event(data)
+        except Exception as e:
+            print(f" Erreur de traitement: {e}")
+
+# À la fin du fichier, modifiez le main :
+if __name__ == '__main__':
+    consumer_thread = threading.Thread(target=kafka_consumer_loop, daemon=True)
+    consumer_thread.start()
+    
+    print(f" Service de commande Instance #{INSTANCE_ID} démarré sur le port {PORT}")
+    app.run(host='0.0.0.0', port=PORT, debug=False)
+```
+
+### 4.5 Lancer 3 instances du service (Consumer Group)
+
+**Lancez 3 instances dans 3 terminaux différents :**
+
+```bash
+# Terminal 1
+INSTANCE_ID=1 PORT=8001 python order-service/service.py
+
+# Terminal 2
+INSTANCE_ID=2 PORT=8002 python order-service/service.py
+
+# Terminal 3
+INSTANCE_ID=3 PORT=8003 python order-service/service.py
+```
+
+>  Les 3 instances partagent le même `group.id` ("order-service-group"), donc Kafka va automatiquement distribuer les partitions entre elles !
+
+### 4.6 Observer la magie du Consumer Group !
+
+Envoyez maintenant 10 paiements rapidement :
+
+```bash
+for i in {1..10}; do
+  curl -s -X POST http://localhost:8000/payment \
+    -H "Content-Type: application/json" \
+    -d "{\"user_id\": $i, \"cart\": [{\"name\": \"Product$i\", \"price\": 100, \"quantity\": 1}]}"
+done
+```
+
+**Observez les 3 terminaux :**
+
+```
+Terminal 1 (Instance #1) :
+ [Instance #1] [Partition 0] [Offset 0] User 2
+ [Instance #1] [Partition 0] [Offset 1] User 5
+ [Instance #1] [Partition 0] [Offset 2] User 8
+
+Terminal 2 (Instance #2) :
+ [Instance #2] [Partition 1] [Offset 0] User 1
+ [Instance #2] [Partition 1] [Offset 1] User 4
+ [Instance #2] [Partition 1] [Offset 2] User 7
+
+Terminal 3 (Instance #3) :
+ [Instance #3] [Partition 2] [Offset 0] User 3
+ [Instance #3] [Partition 2] [Offset 1] User 6
+ [Instance #3] [Partition 2] [Offset 2] User 9
+```
+
+ **Chaque instance ne traite QUE les messages de SA partition !**
+
+### 4.7 Vérifier dans Kafka UI
 
 1. Allez sur Kafka UI : http://localhost:8080
-2. Cliquez sur **"Consumers"** dans le menu
-3. Cliquez sur **"order-service-group"**
-4. Observez : chaque consumer a sa propre partition assignée !
+2. Cliquez sur **"Consumers"** → **"order-service-group"**
+3. Observez l'assignation :
 
-### 4.5 Relancer la simulation et comparer
+| Consumer | Partition assignée |
+|----------|-------------------|
+| Instance 1 | Partition 0 |
+| Instance 2 | Partition 1 |
+| Instance 3 | Partition 2 |
 
-**Terminal 4 - Injectez à nouveau 1000 messages:**
+### 4.8 Expérience : Que se passe-t-il si un consumer tombe ?
+
+1. **Arrêtez l'Instance #2** (Ctrl+C dans le Terminal 2)
+2. Attendez quelques secondes (rebalancing)
+3. Envoyez de nouveaux messages
+
+**Résultat :** Les instances #1 et #3 se répartissent maintenant les 3 partitions !
+
+```
+Terminal 1 (Instance #1) :
+ [Instance #1] [Partition 0] [Offset 3] User 11
+ [Instance #1] [Partition 1] [Offset 3] User 12  ← Récupère la Partition 1 !
+
+Terminal 3 (Instance #3) :
+ [Instance #3] [Partition 2] [Offset 3] User 13
+```
+
+### 4.9 Relancer la simulation Black Friday
+
+Avec vos 3 consumers actifs, relancez le flood :
+
 ```bash
 python scripts/kafka_flood.py -n 1000
 ```
 
-**Terminal 5 - Surveillez le lag:**
+**Surveillez le lag :**
 ```bash
 python scripts/check_consumer_lag.py --monitor
 ```
-
-### 4.6 Comparer les résultats
 
 | Configuration | Débit de traitement | Temps pour 1000 messages |
 |--------------|---------------------|--------------------------|
@@ -908,18 +1094,31 @@ python scripts/check_consumer_lag.py --monitor
 
 **Le lag descend 3x plus vite !**
 
-### 4.7 Test extrême
+### 4.10 Questions de réflexion
 
-Avec 3 consumers en parallèle :
-```bash
-python scripts/kafka_flood.py --intense  # 5000 messages
-```
+1. **Que se passe-t-il si on a 3 partitions et 5 consumers ?**
+   > <details> <summary>Réponse</summary> Seulement 3 consumers seront actifs (1 par partition). Les 2 autres seront en "standby". </details>
 
-Le système gère maintenant beaucoup mieux la charge !
+2. **Que se passe-t-il si on a 3 partitions et 1 seul consumer ?**
+   > <details> <summary>Réponse</summary> Le consumer unique consomme toutes les partitions. Aucun parallélisme. </details>
 
+3. **Quel est le nombre optimal de consumers ?**
+   > <details> <summary>Réponse</summary> Idéalement 1 consumer par partition pour maximiser le parallélisme. </details>
 ---
 
-## Partie 5 : Gestion des Messages Empoisonnés (20 min)
+## Partie 5 : Gestion des Messages Empoisonnés
+
+> ###  Checkpoint 5
+> **Où en sommes-nous ?**  Votre système scale horizontalement ! Vous êtes prêts pour le Black Friday... ou presque.
+> 
+> **Nouveau problème :** Que se passe-t-il si un message est corrompu ou malformé ?
+>
+> **Ce que vous allez faire :**
+> - Découvrir les "poison pills" (messages empoisonnés)
+> - Observer un consumer crasher sur un message invalide
+> - Implémenter une **Dead Letter Queue (DLQ)** pour isoler les erreurs
+> - Rendre votre système résilient aux données corrompues
+>
 
 ### 5.1 Qu'est-ce qu'un message empoisonné ?
 
@@ -1019,7 +1218,18 @@ docker exec -it kafka kafka-console-consumer \
 
 ---
 
-## Partie 6 : Analytics en Temps Réel avec Kafka Streams (15 min)
+## Partie 6 : Analytics en Temps Réel
+
+> ###  Checkpoint 6
+> **Où en sommes-nous ?**  Votre système est scalable ET résilient ! Les messages en erreur sont isolés dans la DLQ.
+> 
+> **Dernière étape :** Exploiter la puissance de Kafka pour du **streaming temps réel** !
+>
+> **Ce que vous allez faire :**
+> - Améliorer le service Analytics pour consommer plusieurs topics
+> - Calculer des métriques en temps réel (revenus, commandes/minute, etc.)
+> - Exposer un dashboard via API REST
+>
 
 ### 6.1 Objectif
 
@@ -1175,6 +1385,19 @@ watch -n 1 'curl -s http://localhost:8003/analytics/live | python -m json.tool'
 ---
 
 ## Partie 7 : Défis Bonus
+
+> ###  Checkpoint Final
+> **Félicitations !**  Vous avez construit un système e-commerce capable de survivre au Black Friday !
+> 
+> **Ce que vous avez appris :**
+> -  Créer et gérer des topics Kafka
+> -  Implémenter des Producers et Consumers
+> -  Identifier les problèmes de scalabilité (LAG)
+> -  Paralléliser avec les partitions et consumer groups
+> -  Gérer les erreurs avec une Dead Letter Queue
+> -  Streamer des analytics en temps réel
+>
+> **Pour aller plus loin :** Ces défis bonus explorent des concepts avancés de Kafka en production.
 
 ### Défi 1 : Réplication pour la haute disponibilité
 
