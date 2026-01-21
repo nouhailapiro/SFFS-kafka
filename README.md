@@ -300,8 +300,11 @@ Indication : réutilisez la technique montrée en 2.1 pour créer un `Producer` 
 - Après création de l'objet `order` dans `process_payment_event`, envoyer l'événement via `producer.produce(...)`.
 - Pour l'envoi, encodez la valeur en bytes (voir 2.1) et utilisez une callback `delivery_report` pour logger le résultat.
 
-
-
+**Lancez le service :**
+```bash
+python order-service/order.py
+```
+Remarquez que une fois le service lancé: On consomme les messages qui étaient produits dans le topic 'payment-successful'
 ### 2.3 Le Service Email (Consumer / Producer)
 
 **Objectif:** Modifier `email-service/email-service.py` pour consommer les messages du topic `order-created` et produire des messages sur le topic `email-sent`.
@@ -323,7 +326,6 @@ python email-service/email-service.py
 **Vérification:** Allez sur Kafka UI et vérifiez :
 1. Le service écoute le topic `order-created`
 2. Il produit des messages sur le topic `email-sent`
-3. Les emails sont stockés dans la liste `emails_sent`
 
 
 **Testez avec curl :**
@@ -334,7 +336,7 @@ curl http://localhost:8002/emails
 
 ### 2.4 Le Service Analytics (Multi-Consumer)
 
-**Objectif:** Modifier `analytics-service/service.py` pour consommer les messages provenant de PLUSIEURS topics (`payment-successful`, `order-created`, `email-sent`) et maintenir des statistiques en temps réel.
+**Objectif:** Modifier `analytics-service/analytics.py` pour consommer les messages provenant de PLUSIEURS topics (`payment-successful`, `order-created`, `email-sent`) et maintenir des statistiques en temps réel.
 
 **TODO:**
 
