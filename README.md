@@ -701,7 +701,7 @@ Terminal 3 (Instance #3) :
    > <details> <summary>Réponse</summary> Idéalement 1 consumer par partition pour maximiser le parallélisme. </details>
 ---
 
-## Partie 5 : Gestion des Messages Empoisonnés
+## Partie 5 : Gestion des Messages Empoisonnés (Bonus)
 
 > ###  Checkpoint 5
 > **Où en sommes-nous ?**  Votre système scale horizontalement ! Vous êtes prêts pour le Black Friday... ou presque.
@@ -734,6 +734,7 @@ Observez les logs de vos consumers. Que se passe-t-il ?
 ### 5.3 Implémenter une gestion robuste
 
 **Objectif:** Modifier le consumer pour :
+
 0. Créer un topic 'dlq-payment'
 1. Attraper les erreurs de parsing
 2. Logger les erreurs
@@ -831,7 +832,7 @@ docker exec -it kafka kafka-console-consumer \
 
 ---
 
-## Partie 6 : Défis Bonus
+## Partie 6 : Défis Bonus++
 
 > ###  Checkpoint Final
 > **Félicitations !**  Vous avez construit un système e-commerce capable de survivre au Black Friday !
