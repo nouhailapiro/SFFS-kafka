@@ -30,7 +30,6 @@ def process_payment_event(message):
     user_id = message.get('user_id')
     cart = message.get('cart')
     
-    # TODO Partie 3.2: Ajouter un délai de traitement réaliste (ex: time.sleep(0.1))
     
     # Créer une nouvelle commande
     order = {
@@ -44,7 +43,7 @@ def process_payment_event(message):
     print(f"[Instance #{INSTANCE_ID}] Nouvelle commande créée: {order}")
     
     # TODO Partie 2.2.5: Produire un message au topic 'order-created'
-    # Le message doit contenir les données de la commande (order)
+    # Le message doit contenir les données de la commande (order) => Vous pouvez utiliser l'objet order directement
     # Utilisez producer.produce() et producer.flush()
     # topic doit être "order-created"
     # value doit être json.dumps(order).encode("utf-8")

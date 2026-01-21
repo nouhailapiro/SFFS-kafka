@@ -179,7 +179,7 @@ producer = Producer(producer_config)
 
 `bootstrap.servers` pointe vers le broker Kafka.
 
-1. Ajouter une fonction de callback `delivery_report` pour logger le résultat
+2. Ajouter une fonction de callback `delivery_report` pour logger le résultat
 
 ```python
 def delivery_report(err, msg):
@@ -191,10 +191,9 @@ def delivery_report(err, msg):
 
 Le callback permet de confirmer l'envoi asynchrone et d'afficher la partition/offset pour debug.
 
-4. Produire le message `payment-successful` après traitement
+3. Produire le message `payment-successful` après traitement
 
 ```python
-# Exemple à placer dans la route qui traite le paiement
 event = {"user_id": user_id, "cart": cart, "timestamp": time.time()}
 
 producer.produce(
@@ -326,7 +325,6 @@ python email-service/email-service.py
 2. Il produit des messages sur le topic `email-sent`
 3. Les emails sont stockés dans la liste `emails_sent`
 
-On remarque que les messages qui sont déja produit dans le topic order-created vont etre consommés par le service email
 
 **Testez avec curl :**
 ```bash
