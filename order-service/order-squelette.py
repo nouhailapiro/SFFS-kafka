@@ -1,8 +1,6 @@
 import time
 import os
 from flask import Flask, jsonify
-import json
-import threading
 import re
 # TODO Partie 2.2.1: Importer les modules nécessaires
 
@@ -24,14 +22,9 @@ orders = []
 
 
 def process_payment_event(message):
-    """
-    Traite l'événement de paiement réussi
-    TODO Partie 3.2: Ajouter un délai time.sleep(0.1) pour simuler un traitement lent
-    """
     user_id = message.get('user_id')
     cart = message.get('cart')
     
-    # TODO Partie 3.2: Ajouter un délai de traitement réaliste (ex: time.sleep(0.1))
     
     # Créer une nouvelle commande
     order = {
@@ -45,7 +38,7 @@ def process_payment_event(message):
     print(f"[Instance #{INSTANCE_ID}] Nouvelle commande créée: {order}")
     
     # TODO Partie 2.2.5: Produire un message au topic 'order-created'
-    # Le message doit contenir les données de la commande (order)
+    # Le message doit contenir les données de la commande (order) => Vous pouvez utiliser l'objet order directement
     # Utilisez producer.produce() et producer.flush()
     # topic doit être "order-created"
     # value doit être json.dumps(order).encode("utf-8")

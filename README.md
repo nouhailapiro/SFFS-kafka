@@ -176,25 +176,23 @@ Tapez un message et appuyez sur Entrée. Vous devriez le voir apparaître dans l
 1. Importer le `Producer` depuis `confluent_kafka`
 
 ```python
-# À ajouter en tête de `payment-service/service.py`
 from confluent_kafka import Producer
-import json
-import time
+
 ```
 
-on importe `Producer` pour envoyer des messages et `json`/`time` pour construire l'événement.
+on importe `Producer` pour envoyer des messages
 
 1. Créer la configuration et l'instance du producer
 
 ```python
 # Config et instance (réutiliser la même instance pour l'application)
-producer_config = {"bootstrap.servers": "localhost:9092"}
+producer_config = {"bootstrap.servers": "localhost:9094"}
 producer = Producer(producer_config)
 ```
 
 `bootstrap.servers` pointe vers le broker Kafka.
 
-1. Ajouter une fonction de callback `delivery_report` pour logger le résultat
+2. Ajouter une fonction de callback `delivery_report` pour logger le résultat
 
 ```python
 def delivery_report(err, msg):
@@ -206,10 +204,9 @@ def delivery_report(err, msg):
 
 Le callback permet de confirmer l'envoi asynchrone et d'afficher la partition/offset pour debug.
 
-4. Produire le message `payment-successful` après traitement
+3. Produire le message `payment-successful` après traitement
 
 ```python
-# Exemple à placer dans la route qui traite le paiement
 event = {"user_id": user_id, "cart": cart, "timestamp": time.time()}
 
 producer.produce(
@@ -245,8 +242,6 @@ curl -X POST http://localhost:8000/payment \
 1) Importer les modules nécessaires:
 
 ```python
-# En tête du fichier
-from flask import Flask, jsonify
 import json
 import threading
 from confluent_kafka import Consumer
@@ -257,9 +252,8 @@ Explication : on importe `Consumer` pour se connecter à Kafka, `json` pour déc
 2) Créer la configuration et l'instance du consumer
 
 ```python
-# Configuration du consumer (à adapter si besoin)
 consumer_config = {
-    "bootstrap.servers": "localhost:9092",
+    "bootstrap.servers": "localhost:9094",
     "group.id": "order-service-group",
     "auto.offset.reset": "earliest"
 }
@@ -314,7 +308,7 @@ Explication : la boucle utilise `consumer.poll()` pour récupérer les messages.
 Indication : réutilisez la technique montrée en 2.1 pour créer un `Producer` et envoyer l'objet `order` au topic `order-created`. Étapes conseillées :
 
 - Importer `Producer` depuis `confluent_kafka`.
-- Instancier `Producer` avec `bootstrap.servers` pointant sur `localhost:9092`.
+- Instancier `Producer` avec `bootstrap.servers` pointant sur `localhost:9094`.
 - Après création de l'objet `order` dans `process_payment_event`, envoyer l'événement via `producer.produce(...)`.
 - Pour l'envoi, encodez la valeur en bytes (voir 2.1) et utilisez une callback `delivery_report` pour logger le résultat.
 
@@ -343,7 +337,6 @@ python email-service/service.py
 2. Il produit des messages sur le topic `email-sent`
 3. Les emails sont stockés dans la liste `emails_sent`
 
-On remarque que les messages qui sont déja produit dans le topic order-created vont etre consommés par le service email
 
 **Testez avec curl :**
 ```bash
