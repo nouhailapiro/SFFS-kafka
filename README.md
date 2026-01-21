@@ -7,9 +7,7 @@ L'objectif est d'implémenter une communication asynchrone entre ces services en
 
 Le scénario représente un pic d'activité typique du "Black Friday" : forte charge de trafic, besoin de scalabilité (partitions + consumer groups) et de résilience (gestion des messages empoisonnés, DLQ). Ce TP vous guide pour transformer des squelettes de services en une architecture événement-driven capable de tenir une charge importante.
 
-**La solution :** Apache Kafka
 
----
 
 ## Objectifs du TP
 
@@ -116,17 +114,6 @@ Créez les topics suivants avec la même commande :
 | `order-created` | Événements de création de commande |
 | `email-sent` | Événements d'envoi d'emails
 
-<details>
-<summary>Solution</summary>
-
-```bash
-docker exec -it kafka kafka-topics --bootstrap-server localhost:9092 \
-    --create --topic order-created --partitions 1 --replication-factor 1
-
-docker exec -it kafka kafka-topics --bootstrap-server localhost:9092 \
-    --create --topic email-sent --partitions 1 --replication-factor 1
-```
-</details>
 
 ### 1.3 Lister les topics
 
@@ -168,7 +155,7 @@ Tapez un message et appuyez sur Entrée. Vous devriez le voir apparaître dans l
 
 ### 2.1 Le Service de Paiement (Producer)
 
-**Objectif:** Modifier `payment-service/service.py` pour envoyer un message Kafka lorsqu'un paiement est effectué.
+**Objectif:** Modifier `payment-service/payment.py` pour envoyer un message Kafka lorsqu'un paiement est effectué.
 
 
 **Guidé (pas à pas) :**
@@ -176,19 +163,17 @@ Tapez un message et appuyez sur Entrée. Vous devriez le voir apparaître dans l
 1. Importer le `Producer` depuis `confluent_kafka`
 
 ```python
-# À ajouter en tête de `payment-service/service.py`
+# À ajouter en tête de `payment-service/payment.py`
 from confluent_kafka import Producer
-import json
-import time
 ```
 
-on importe `Producer` pour envoyer des messages et `json`/`time` pour construire l'événement.
+on importe `Producer` pour envoyer des messages
 
 1. Créer la configuration et l'instance du producer
 
 ```python
 # Config et instance (réutiliser la même instance pour l'application)
-producer_config = {"bootstrap.servers": "localhost:9092"}
+producer_config = {"bootstrap.servers": "localhost:9094"}
 producer = Producer(producer_config)
 ```
 
@@ -201,7 +186,7 @@ def delivery_report(err, msg):
     if err:
         print(f"Kafka delivery failed: {err}")
     else:
-        print(f"Message envoyé → topic:{msg.topic()} partition:{msg.partition()} offset:{msg.offset()}")
+        print(f"Message envoyé → topic:{msg.topic()}")
 ```
 
 Le callback permet de confirmer l'envoi asynchrone et d'afficher la partition/offset pour debug.
@@ -225,7 +210,7 @@ L'API `produce` attend des bytes pour la `value` — d'où `json.dumps(...).enco
 
 **Lancez le service :**
 ```bash
-python payment-service/service.py
+python payment-service/payment.py
 ```
 
 **Dans un autre terminal, testez avec curl :**
@@ -239,27 +224,25 @@ curl -X POST http://localhost:8000/payment \
 
 ### 2.2 Le Service de Commande ( Consumer / Producer )
 
-**Objectif:** Guider pas-à-pas la création d'un consommateur dans `order-service/service.py` qui lit les événements publiés sur le topic `payment-successful` et les transforme en commandes en mémoire.
+**Objectif:** Création d'un consommateur dans `order-service/order.py` qui lit les événements publiés sur le topic `payment-successful` et les transforme en commandes en mémoire.
 
 
 1) Importer les modules nécessaires:
 
 ```python
 # En tête du fichier
-from flask import Flask, jsonify
 import json
 import threading
 from confluent_kafka import Consumer
 ```
-
 Explication : on importe `Consumer` pour se connecter à Kafka, `json` pour décoder les messages, et `threading` pour faire tourner le consumer en arrière-plan.
 
 2) Créer la configuration et l'instance du consumer
 
 ```python
-# Configuration du consumer (à adapter si besoin)
+# Configuration du consumer
 consumer_config = {
-    "bootstrap.servers": "localhost:9092",
+    "bootstrap.servers": "localhost:9094",
     "group.id": "order-service-group",
     "auto.offset.reset": "earliest"
 }
@@ -267,7 +250,7 @@ consumer_config = {
 consumer = Consumer(consumer_config)
 ```
 
-Explication : `group.id` permet le scalabilité via consumer groups. `auto.offset.reset: earliest` garantit que le consumer lit depuis le début si aucun offset n'existe.
+Explication : `group.id` permet le scalabilité via consumer groups (On verra ça en détails un peu plus tard). `auto.offset.reset: earliest` garantit que le consumer lit depuis le début si aucun offset n'existe.
 
 
 3) Implémenter la boucle du consumer (lecture et décodage)
@@ -314,7 +297,7 @@ Explication : la boucle utilise `consumer.poll()` pour récupérer les messages.
 Indication : réutilisez la technique montrée en 2.1 pour créer un `Producer` et envoyer l'objet `order` au topic `order-created`. Étapes conseillées :
 
 - Importer `Producer` depuis `confluent_kafka`.
-- Instancier `Producer` avec `bootstrap.servers` pointant sur `localhost:9092`.
+- Instancier `Producer` avec `bootstrap.servers` pointant sur `localhost:9094`.
 - Après création de l'objet `order` dans `process_payment_event`, envoyer l'événement via `producer.produce(...)`.
 - Pour l'envoi, encodez la valeur en bytes (voir 2.1) et utilisez une callback `delivery_report` pour logger le résultat.
 
@@ -322,7 +305,7 @@ Indication : réutilisez la technique montrée en 2.1 pour créer un `Producer` 
 
 ### 2.3 Le Service Email (Consumer / Producer)
 
-**Objectif:** Modifier `email-service/service.py` pour consommer les messages du topic `order-created` et produire des messages sur le topic `email-sent`.
+**Objectif:** Modifier `email-service/email-service.py` pour consommer les messages du topic `order-created` et produire des messages sur le topic `email-sent`.
 
 **TODO:**
 
@@ -335,7 +318,7 @@ Inspirez vous des cas précédents !
 
 **Lancez le service :**
 ```bash
-python email-service/service.py
+python email-service/email-service.py
 ```
 
 **Vérification:** Allez sur Kafka UI et vérifiez :
@@ -364,7 +347,7 @@ curl http://localhost:8002/emails
 
 **Lancez le service :**
 ```bash
-python analytics-service/service.py
+python analytics-service/analytics.py
 ```
 
 
@@ -374,16 +357,16 @@ Lancez tous les services dans des terminaux séparés :
 
 ```bash
 # Terminal 1
-python payment-service/service.py
+python payment-service/payment.py
 
 # Terminal 2
-python order-service/service.py
+python order-service/order.py
 
 # Terminal 3
-python email-service/service.py
+python email-service/email-service.py
 
 # Terminal 4
-python analytics-service/service.py
+python analytics-service/analytics.py
 ```
 
 Envoyez un paiement :
@@ -436,7 +419,7 @@ Un lag élevé signifie que votre consumer n'arrive pas à suivre le rythme de p
 
 ### 3.2 Ajouter un délai de traitement au consumer
 
-Pour simuler un traitement réaliste (accès base de données, appels API, etc.), modifiez votre `order-service/service.py` pour ajouter un délai dans `process_payment_event`:
+Pour simuler un traitement réaliste (accès base de données, appels API, etc.), modifiez votre `order-service/order.py` pour ajouter un délai dans `process_payment_event`:
 
 ```python
 import time
@@ -456,13 +439,12 @@ def process_payment_event(message):
     }
     # ... reste du code
 ```
-N'oubliez pas d'importer le module time en début de fichier.
 
 ### 3.3 Lancer la simulation Black Friday
 
 **Terminal 1 - Lancez votre order-service:**
 ```bash
-python order-service/service.py
+python order-service/order.py
 ```
 
 **Terminal 2 - Injectez 1000 messages dans Kafka:**
@@ -480,11 +462,6 @@ Vous verrez que les 1000 messages sont envoyés en quelques secondes.
 2. Cliquez sur **"order-service-group"**
 3. Observez la colonne **"Lag"** pour le topic `payment-successful`
 
-Vous devriez voir quelque chose comme :
-
-| Topic | Partition | Current Offset | End Offset | **Lag** |
-|-------|-----------|----------------|------------|---------|
-| payment-successful | 0 | 153 | 1000 | **847** |
 
 **Le consumer traite ~10 messages/seconde, mais on en a injecté 1000 en quelques secondes !**
 
@@ -540,12 +517,15 @@ Les partitions permettent de paralléliser le traitement des messages. **Chaque 
 docker exec -it kafka kafka-topics --bootstrap-server localhost:9092 \
     --delete --topic payment-successful 
 
-# réecrer avec 3 partitions (s inspirer )
+docker exec -it kafka kafka-topics --bootstrap-server localhost:9092 \
+    --delete --topic order-created 
+
+# réecrer avec 3 partitions (s'inspirer des commandes 1.1)
 ```
 
 ### 4.3 Observer la distribution des messages (côté Producer)
 
-Modifiez la fonction `delivery_report` dans votre **payment-service** pour afficher la partition :
+Modifiez la fonction `delivery_report` dans votre **payment-service** pour afficher la partition et l'offset :
 
 ```python
 def delivery_report(err, msg):
@@ -567,6 +547,7 @@ curl -X POST http://localhost:8000/payment \
     -d '{"user_id": 2, "cart": [{"name": "MacBook", "price": 1999, "quantity": 1}]}'
 
 # ... continuez avec user_id 3, 4, 5...
+
 ```
 
 **Observez les logs :**
@@ -627,13 +608,13 @@ if __name__ == '__main__':
 
 ```bash
 # Terminal 1
-INSTANCE_ID=1 PORT=8001 python order-service/service.py
+INSTANCE_ID=1 PORT=8001 python order-service/order.py
 
 # Terminal 2
-INSTANCE_ID=2 PORT=8002 python order-service/service.py
+INSTANCE_ID=2 PORT=8002 python order-service/order.py
 
 # Terminal 3
-INSTANCE_ID=3 PORT=8003 python order-service/service.py
+INSTANCE_ID=3 PORT=8003 python order-service/order.py
 ```
 
 >  Les 3 instances partagent le même `group.id` ("order-service-group"), donc Kafka va automatiquement distribuer les partitions entre elles !

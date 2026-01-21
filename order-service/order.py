@@ -1,8 +1,6 @@
 import time
 import os
 from flask import Flask, jsonify
-import json
-import threading
 import re
 # TODO Partie 2.2.1: Importer les modules nécessaires
 
@@ -22,12 +20,13 @@ orders = []
 
 # TODO Partie 2.2.5: Créer l'instance du producer
 
+def delivery_report(err, msg):
+        if err:
+                print(f"Échec envoi: {err}")
+        else:
+                print(f"Message envoyé à {msg.topic()}")
 
 def process_payment_event(message):
-    """
-    Traite l'événement de paiement réussi
-    TODO Partie 3.2: Ajouter un délai time.sleep(0.1) pour simuler un traitement lent
-    """
     user_id = message.get('user_id')
     cart = message.get('cart')
     

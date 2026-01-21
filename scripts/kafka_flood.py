@@ -62,15 +62,10 @@ def run_simulation(num_messages, batch_size=100):
         num_messages: Nombre total de messages à envoyer
         batch_size: Nombre de messages par batch avant flush
     """
-    print("=" * 70)
-    print("SIMULATION BLACK FRIDAY - INJECTION DIRECTE KAFKA")
-    print("=" * 70)
     print(f"Configuration:")
     print(f"   - Nombre de messages à envoyer: {num_messages}")
     print(f"   - Topic cible: payment-successful")
     print(f"   - Kafka: {KAFKA_BOOTSTRAP_SERVERS}")
-    print("=" * 70)
-    print()
     
     producer_config = {
         "bootstrap.servers": KAFKA_BOOTSTRAP_SERVERS,
@@ -112,33 +107,14 @@ def run_simulation(num_messages, batch_size=100):
             producer.flush()
     
     # Flush final
-    print()
-    print("Flush final en cours...")
     producer.flush()
     
     total_time = time.time() - start_time
     
     # Afficher les résultats
     print()
-    print("=" * 70)
-    print("RÉSULTATS DE L'INJECTION")
-    print("=" * 70)
     print(f"Messages envoyés: {stats['sent']}")
     print(f"Échecs: {stats['failed']}")
-    print(f"Temps total: {total_time:.2f}s")
-    print(f"Débit: {stats['sent'] / total_time:.0f} messages/seconde")
-    print()
-    print("=" * 70)
-    print("PROCHAINES ÉTAPES")
-    print("=" * 70)
-    print()
-    print()
-    print("Dans Kafka UI: http://localhost:8080")
-    print("   → Topics → payment-successful → Consumers")
-    print()
-    print("Si le lag est élevé, votre consumer ne suit pas la charge!")
-    print("   → Solution: Augmenter les partitions + ajouter des consumers")
-    print("=" * 70)
 
 def main():
     parser = argparse.ArgumentParser(description="Simulation Black Friday - Injection Kafka")
